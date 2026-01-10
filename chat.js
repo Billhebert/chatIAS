@@ -48,13 +48,7 @@ class OpenCodeManager {
     console.log("🚀 Inicializando ChatIAS com arquitetura modular...\n");
 
     // 1. Inicializar OpenCode SDK
-    try {
-      await this.initializeSDK();
-    } catch (error) {
-      console.log("   ⚠️ OpenCode SDK não disponível:", error.message);
-      console.log("   Continuando sem OpenCode SDK...\n");
-      this.client = null; // Marca como não disponível
-    }
+    await this.initializeSDK();
 
     // 2. Inicializar Ollama Client
     this.initializeOllama();
@@ -229,39 +223,24 @@ class ChatClient extends OpenCodeManager {
    */
   async createSession(title = "Chat Session") {
     if (!this.client) {
-      console.log(`   ⚠️ OpenCode SDK não disponível, pulando criação de sessão\n`);
-      return null;
+      throw new Error("OpenCode SDK não inicializado. Certifique-se de que o OpenCode CLI está instalado e rodando.");
     }
 
     console.log(`📝 Criando sessão: "${title}"`);
 
-    try {
-      const sessionRes = await this.client.session.create({
-        body: { title: title },
-      });
+    const sessionRes = await this.client.session.create({
+      body: { title: title },
+    });
 
-      // Debug: ver a resposta real
-      console.log("   Debug - Resposta completa:", JSON.stringify(sessionRes, null, 2));
+    // Extrair ID da sessão da resposta
+    this.sessionId = sessionRes?.data?.id ?? sessionRes?.id;
 
-      // Tentar diferentes formatos de resposta
-      this.sessionId = sessionRes?.data?.id ?? sessionRes?.id ?? sessionRes ?? null;
-
-      if (this.sessionId && typeof this.sessionId === 'string') {
-        console.log(`   ✓ Sessão criada: ${this.sessionId}\n`);
-      } else {
-        console.error("   ✗ Resposta não contém ID válido");
-        console.error("   sessionRes.data:", sessionRes?.data);
-        console.error("   sessionRes.id:", sessionRes?.id);
-        console.error("   sessionRes:", sessionRes);
-        throw new Error("Falha ao criar sessão - ID não encontrado na resposta");
-      }
-    } catch (error) {
-      console.error(`   ✗ Erro ao criar sessão: ${error.message}`);
-      if (error.response) {
-        console.error("   Resposta de erro:", error.response);
-      }
-      return null; // Retorna null em vez de lançar erro
+    if (!this.sessionId) {
+      throw new Error("Falha ao obter ID da sessão. Resposta da API: " + JSON.stringify(sessionRes));
     }
+
+    console.log(`   ✓ Sessão criada: ${this.sessionId}\n`);
+    return this.sessionId;
   }
 
   /**
@@ -427,25 +406,11 @@ async function main() {
     await client.initialize();
 
     // 2. Criar sessão de chat
-    const sessionId = await client.createSession("Teste ChatIAS com Ollama Fallback");
-
-    if (!sessionId) {
-      console.log("\n⚠️ Não foi possível criar sessão com OpenCode SDK");
-      console.log("💡 Isso é esperado se o OpenCode não estiver instalado ou rodando");
-      console.log("   Para testar sem OpenCode, execute: node chat-standalone.js\n");
-      console.log("📊 STATUS DOS SISTEMAS\n");
-      console.log(`Agentes ativos: ${globalAgentManager.list({ enabled: true }).length}`);
-      console.log(`Tools registradas: ${globalToolRegistry.list().length}`);
-      console.log(`Servidores MCP: ${globalMCPManager.list().length}`);
-      console.log("\n💡 Para usar o chat completo, instale o OpenCode:");
-      console.log("   npm install -g @opencode-ai/cli");
-      console.log("   Documentação: https://opencode.ai/docs/sdk/\n");
-      return;
-    }
+    await client.createSession("ChatIAS - Produção");
 
     // 3. Enviar mensagem de teste
     console.log("=" .repeat(60));
-    console.log("TESTE: Enviando mensagem com sistema de fallback");
+    console.log("TESTE: Sistema de Fallback em Cascata");
     console.log("=" .repeat(60) + "\n");
 
     const response = await client.sendMessage([
@@ -453,10 +418,10 @@ async function main() {
     ]);
 
     // 4. Mostrar resultado
-    console.log("=" .repeat(60));
+    console.log("\n" + "=" .repeat(60));
     console.log("RESULTADO");
     console.log("=" .repeat(60));
-    console.log(`\nModelo usado: ${response.model?.providerID}/${response.model?.modelID}`);
+    console.log(`Modelo usado: ${response.model?.providerID}/${response.model?.modelID}`);
     console.log(`Sucesso: ${response.success}\n`);
 
     if (response.success) {
@@ -480,8 +445,15 @@ async function main() {
     console.log(`Servidores MCP: ${globalMCPManager.list().length}`);
 
   } catch (error) {
-    console.error("\n❌ Erro:", error.message);
-    console.error("\n💡 Dica: Execute 'node chat-standalone.js' para testar sem OpenCode SDK");
+    console.error("\n❌ Erro fatal:", error.message);
+    console.error("\nStack trace:", error.stack);
+
+    console.error("\n💡 Solução:");
+    console.error("1. Certifique-se de que o OpenCode CLI está instalado:");
+    console.error("   npm install -g @opencode-ai/cli");
+    console.error("2. Verifique se o servidor está rodando na porta " + (process.env.SDK_PORT || 4096));
+    console.error("3. Para instalar Ollama (fallback): https://ollama.ai/");
+    console.error("4. Consulte: TROUBLESHOOTING.md");
   } finally {
     // Encerrar
     await client.shutdown();

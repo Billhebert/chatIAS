@@ -48,28 +48,60 @@ ollama list
 
 ## 🎯 Uso
 
-### 3 Modos de Execução
+### Produção
 
-#### 1. Modo Completo (com OpenCode SDK)
+**Arquivo principal**: `chat.js`
+
 ```bash
+# Executar em produção
 node chat.js
 ```
-**Requisitos**: OpenCode CLI instalado e rodando
-**Funcionalidades**: Todos os 15 modelos + sistema modular completo
 
-#### 2. Modo Standalone (sem OpenCode SDK) - **Recomendado para testes**
+**Requisitos**:
+- ✅ OpenCode CLI instalado e rodando
+- ✅ Ollama instalado (opcional, apenas para fallback)
+
+**Funcionalidades**:
+- ✅ 12 modelos remotos (OpenCode, OpenRouter, Zenmux)
+- ✅ 3 modelos Ollama como fallback
+- ✅ Sistema modular de agentes (5 agentes)
+- ✅ Tools customizadas (3 tools)
+- ✅ MCP servers
+- ✅ Skills documentadas
+
+### Desenvolvimento/Testes
+
+Para testar sem OpenCode SDK:
+
 ```bash
+# Demo do sistema modular (sempre funciona)
+node examples/demo-modular-system.js
+
+# Versão standalone (para testes sem SDK)
 node chat-standalone.js
 ```
-**Requisitos**: Nenhum (Ollama opcional)
-**Funcionalidades**: Sistema modular completo + Ollama
 
-#### 3. Modo Demo (apenas demonstração)
+**Nota**: Estes arquivos são apenas para **desenvolvimento e testes**, não para produção.
+
+### Integração
+
+Para integrar em sua aplicação:
+
 ```bash
-node examples/demo-modular-system.js
+# Veja exemplo completo
+node production-example.js
 ```
-**Requisitos**: Nenhum
-**Funcionalidades**: Demonstra todos os sistemas modulares
+
+Ou importe diretamente:
+
+```javascript
+import { ProductionChatClient } from "./production-example.js";
+
+const client = new ProductionChatClient();
+await client.initialize();
+await client.createSession("Minha Sessão");
+const response = await client.sendMessage("Olá!");
+```
 
 ## 🏗️ Arquitetura
 

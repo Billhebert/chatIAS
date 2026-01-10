@@ -1,6 +1,10 @@
 /**
+ * ⚠️ ATENÇÃO: ESTE ARQUIVO É APENAS PARA TESTES/DESENVOLVIMENTO
+ *
  * Demonstração do sistema modular sem depender do OpenCode SDK rodando
  * Este exemplo mostra como usar os sistemas de agentes, tools e MCP
+ *
+ * PARA PRODUÇÃO, USE: chat.js ou production-example.js
  */
 
 import { globalAgentManager } from "../lib/agents/index.js";

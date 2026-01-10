@@ -1,6 +1,10 @@
 /**
+ * ⚠️ ATENÇÃO: ESTE ARQUIVO É APENAS PARA TESTES/DESENVOLVIMENTO
+ *
  * ChatIAS - Versão Standalone (funciona sem OpenCode SDK rodando)
  * Demonstra o sistema modular e fallback Ollama
+ *
+ * PARA PRODUÇÃO, USE: chat.js ou production-example.js
  */
 
 import { createOllamaClient } from "./lib/ollama/index.js";
