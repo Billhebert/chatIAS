@@ -48,10 +48,28 @@ ollama list
 
 ## 🎯 Uso
 
+### 3 Modos de Execução
+
+#### 1. Modo Completo (com OpenCode SDK)
 ```bash
-# Executar
 node chat.js
 ```
+**Requisitos**: OpenCode CLI instalado e rodando
+**Funcionalidades**: Todos os 15 modelos + sistema modular completo
+
+#### 2. Modo Standalone (sem OpenCode SDK) - **Recomendado para testes**
+```bash
+node chat-standalone.js
+```
+**Requisitos**: Nenhum (Ollama opcional)
+**Funcionalidades**: Sistema modular completo + Ollama
+
+#### 3. Modo Demo (apenas demonstração)
+```bash
+node examples/demo-modular-system.js
+```
+**Requisitos**: Nenhum
+**Funcionalidades**: Demonstra todos os sistemas modulares
 
 ## 🏗️ Arquitetura
 
