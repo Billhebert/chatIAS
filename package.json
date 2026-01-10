@@ -13,9 +13,18 @@
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "type": "commonjs",
+  "type": "module",
   "bugs": {
     "url": "https://github.com/Billhebert/chatIAS/issues"
   },
-  "homepage": "https://github.com/Billhebert/chatIAS#readme"
+  "homepage": "https://github.com/Billhebert/chatIAS#readme",
+  "dependencies": {
+    "@opencode-ai/sdk": "^1.1.8",
+    "dotenv": "^17.2.3",
+    "@hey-api/openapi-ts": "0.88.1",
+    "@tsconfig/node22": "22.0.2",
+    "@types/node": "22.13.9",
+    "typescript": "5.8.2",
+    "@typescript/native-preview": "7.0.0-dev.20251207.1"
+  }
 }
