@@ -47,20 +47,20 @@ export class ChatEngine {
       // Modelos mais rápidos e confiáveis primeiro
       const freeModels = [
         // OpenRouter (geralmente mais rápido e confiável)
-        { provider: 'openrouter', model: 'google/gemini-2.0-flash-exp:free', name: 'Gemini 2.0 Flash (OpenRouter)' },
-        { provider: 'openrouter', model: 'qwen/qwen3-coder:free', name: 'Qwen3 Coder (OpenRouter)' },
-        { provider: 'openrouter', model: 'meta-llama/llama-3.3-70b-instruct:free', name: 'Llama 3.3 70B (OpenRouter)' },
-        { provider: 'openrouter', model: 'z-ai/glm-4.5-air:free', name: 'GLM 4.5 Air (OpenRouter)' },
-        { provider: 'openrouter', model: 'mistralai/devstral-2512:free', name: 'Devstral (OpenRouter)' },
+        { providerID: 'openrouter', modelID: 'google/gemini-2.0-flash-exp:free', name: 'Gemini 2.0 Flash (OpenRouter)' },
+        { providerID: 'openrouter', modelID: 'qwen/qwen3-coder:free', name: 'Qwen3 Coder (OpenRouter)' },
+        { providerID: 'openrouter', modelID: 'meta-llama/llama-3.3-70b-instruct:free', name: 'Llama 3.3 70B (OpenRouter)' },
+        { providerID: 'openrouter', modelID: 'z-ai/glm-4.5-air:free', name: 'GLM 4.5 Air (OpenRouter)' },
+        { providerID: 'openrouter', modelID: 'mistralai/devstral-2512:free', name: 'Devstral (OpenRouter)' },
         
         // ZenMux (backup)
-        { provider: 'zenmux', model: 'z-ai/glm-4.6v-flash-free', name: 'GLM 4.6v Flash (ZenMux)' },
-        { provider: 'zenmux', model: 'kuaishou/kat-coder-pro-v1-free', name: 'Kat Coder Pro (ZenMux)' },
-        { provider: 'zenmux', model: 'xiaomi/mimo-v2-flash-free', name: 'Mimo v2 Flash (ZenMux)' },
+        { providerID: 'zenmux', modelID: 'z-ai/glm-4.6v-flash-free', name: 'GLM 4.6v Flash (ZenMux)' },
+        { providerID: 'zenmux', modelID: 'kuaishou/kat-coder-pro-v1-free', name: 'Kat Coder Pro (ZenMux)' },
+        { providerID: 'zenmux', modelID: 'xiaomi/mimo-v2-flash-free', name: 'Mimo v2 Flash (ZenMux)' },
         
         // OpenCode (última opção, pode ter problemas)
-        { provider: 'opencode', model: 'glm-4.7-free', name: 'GLM-4.7 (OpenCode)' },
-        { provider: 'opencode', model: 'minimax-m2.1-free', name: 'MiniMax M2.1 (OpenCode)' }
+        { providerID: 'opencode', modelID: 'glm-4.7-free', name: 'GLM-4.7 (OpenCode)' },
+        { providerID: 'opencode', modelID: 'minimax-m2.1-free', name: 'MiniMax M2.1 (OpenCode)' }
       ];
 
       let sessionCreated = false;
@@ -77,8 +77,8 @@ export class ChatEngine {
             body: {
               name: 'ChatIAS-Session',
               model: {
-                provider: modelConfig.provider,
-                model: modelConfig.model,
+                providerID: modelConfig.providerID,
+                modelID: modelConfig.modelID,
                 temperature: 0.7,
                 maxTokens: 2000  // Configuração conservadora para modelos free
               }
@@ -315,8 +315,8 @@ Respond with ONLY the intent type, nothing else.`;
             parts: [{ type: 'text', text: message }],  // SDK espera parts com type e text
             // FORÇA o modelo em cada request para garantir
             model: this.currentModel ? {
-              provider: this.currentModel.provider,
-              model: this.currentModel.model,
+              providerID: this.currentModel.providerID,
+              modelID: this.currentModel.modelID,
               temperature: 0.7,
               maxTokens: 2000
             } : undefined
