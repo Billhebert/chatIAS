@@ -44,11 +44,23 @@ export class ChatEngine {
     // Cria sessão SDK se disponível
     if (this.sdk) {
       // Lista de modelos free para tentar (em ordem de prioridade)
+      // Modelos mais rápidos e confiáveis primeiro
       const freeModels = [
-        { provider: 'opencode', model: 'minimax-m2.1-free', name: 'MiniMax M2.1 Free' },
-        { provider: 'opencode', model: 'glm-4.7-free', name: 'GLM-4.7 Free' },
-        { provider: 'openrouter', model: 'kwaipilot/kat-coder-pro:free', name: 'Kwai Coder Free' },
-        { provider: 'openrouter', model: 'google/gemini-2.0-flash-thinking-exp:free', name: 'Gemini 2.0 Flash Free' }
+        // OpenRouter (geralmente mais rápido e confiável)
+        { provider: 'openrouter', model: 'google/gemini-2.0-flash-exp:free', name: 'Gemini 2.0 Flash (OpenRouter)' },
+        { provider: 'openrouter', model: 'qwen/qwen3-coder:free', name: 'Qwen3 Coder (OpenRouter)' },
+        { provider: 'openrouter', model: 'meta-llama/llama-3.3-70b-instruct:free', name: 'Llama 3.3 70B (OpenRouter)' },
+        { provider: 'openrouter', model: 'z-ai/glm-4.5-air:free', name: 'GLM 4.5 Air (OpenRouter)' },
+        { provider: 'openrouter', model: 'mistralai/devstral-2512:free', name: 'Devstral (OpenRouter)' },
+        
+        // ZenMux (backup)
+        { provider: 'zenmux', model: 'z-ai/glm-4.6v-flash-free', name: 'GLM 4.6v Flash (ZenMux)' },
+        { provider: 'zenmux', model: 'kuaishou/kat-coder-pro-v1-free', name: 'Kat Coder Pro (ZenMux)' },
+        { provider: 'zenmux', model: 'xiaomi/mimo-v2-flash-free', name: 'Mimo v2 Flash (ZenMux)' },
+        
+        // OpenCode (última opção, pode ter problemas)
+        { provider: 'opencode', model: 'glm-4.7-free', name: 'GLM-4.7 (OpenCode)' },
+        { provider: 'opencode', model: 'minimax-m2.1-free', name: 'MiniMax M2.1 (OpenCode)' }
       ];
 
       let sessionCreated = false;
@@ -289,6 +301,7 @@ Respond with ONLY the intent type, nothing else.`;
     // 1. Tenta SDK primeiro (PROVIDER PRINCIPAL)
     if (this.sdk && this.sdkSessionId) {
       logger.info('mcp', 'Using OpenCode SDK (primary provider)...', null, requestId);
+      logger.debug('mcp', `Session: ${this.sdkSessionId}, Model: ${this.currentModel?.name || 'unknown'}`, null, requestId);
       try {
         // Timeout de 15 segundos para SDK
         const timeoutPromise = new Promise((_, reject) => 
@@ -299,25 +312,42 @@ Respond with ONLY the intent type, nothing else.`;
           path: { id: this.sdkSessionId },
           body: {
             role: 'user',
-            parts: [{ type: 'text', text: message }]  // SDK espera parts com type e text
+            parts: [{ type: 'text', text: message }],  // SDK espera parts com type e text
+            // FORÇA o modelo em cada request para garantir
+            model: this.currentModel ? {
+              provider: this.currentModel.provider,
+              model: this.currentModel.model,
+              temperature: 0.7,
+              maxTokens: 2000
+            } : undefined
           }
         });
 
         const response = await Promise.race([promptPromise, timeoutPromise]);
 
-        logger.debug('mcp', `SDK raw response: ${JSON.stringify(response)}`, null, requestId);
+        // Log detalhado da resposta SDK para debug
+        logger.info('mcp', `SDK raw response: ${JSON.stringify(response).substring(0, 500)}`, null, requestId);
         logger.debug('mcp', `SDK response type: ${typeof response}, hasData: ${!!response?.data}`, null, requestId);
 
         // SDK retorna mensagem no formato { data: { messages: [...] } }
         let text = '';
         if (response && response.data) {
+          logger.debug('mcp', `SDK data keys: ${Object.keys(response.data).join(', ')}`, null, requestId);
+          
           // Formato com array de mensagens
           if (response.data.messages && Array.isArray(response.data.messages)) {
+            logger.debug('mcp', `SDK has ${response.data.messages.length} messages`, null, requestId);
             const assistantMsg = response.data.messages.find(m => m.role === 'assistant');
             if (assistantMsg && assistantMsg.parts && assistantMsg.parts[0]) {
               text = assistantMsg.parts[0].text || assistantMsg.parts[0].content || '';
             }
           }
+          
+          // Checar se tem erro no response
+          if (response.data.info && response.data.info.error) {
+            logger.error('mcp', `SDK returned error: ${JSON.stringify(response.data.info.error)}`, null, requestId);
+          }
+          
           // Fallback: tenta outros formatos
           if (!text && response.data.content) {
             text = response.data.content;
