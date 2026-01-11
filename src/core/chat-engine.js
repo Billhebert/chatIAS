@@ -44,23 +44,23 @@ export class ChatEngine {
     // Cria sessão SDK se disponível
     if (this.sdk) {
       // Lista de modelos free para tentar (em ordem de prioridade)
-      // Modelos mais rápidos e confiáveis primeiro
+      // Formato: "provider/model" como string simples
       const freeModels = [
         // OpenRouter (geralmente mais rápido e confiável)
-        { providerID: 'openrouter', modelID: 'google/gemini-2.0-flash-exp:free', name: 'Gemini 2.0 Flash (OpenRouter)' },
-        { providerID: 'openrouter', modelID: 'qwen/qwen3-coder:free', name: 'Qwen3 Coder (OpenRouter)' },
-        { providerID: 'openrouter', modelID: 'meta-llama/llama-3.3-70b-instruct:free', name: 'Llama 3.3 70B (OpenRouter)' },
-        { providerID: 'openrouter', modelID: 'z-ai/glm-4.5-air:free', name: 'GLM 4.5 Air (OpenRouter)' },
-        { providerID: 'openrouter', modelID: 'mistralai/devstral-2512:free', name: 'Devstral (OpenRouter)' },
+        { model: 'openrouter/google/gemini-2.0-flash-exp:free', name: 'Gemini 2.0 Flash (OpenRouter)' },
+        { model: 'openrouter/qwen/qwen3-coder:free', name: 'Qwen3 Coder (OpenRouter)' },
+        { model: 'openrouter/meta-llama/llama-3.3-70b-instruct:free', name: 'Llama 3.3 70B (OpenRouter)' },
+        { model: 'openrouter/z-ai/glm-4.5-air:free', name: 'GLM 4.5 Air (OpenRouter)' },
+        { model: 'openrouter/mistralai/devstral-2512:free', name: 'Devstral (OpenRouter)' },
         
         // ZenMux (backup)
-        { providerID: 'zenmux', modelID: 'z-ai/glm-4.6v-flash-free', name: 'GLM 4.6v Flash (ZenMux)' },
-        { providerID: 'zenmux', modelID: 'kuaishou/kat-coder-pro-v1-free', name: 'Kat Coder Pro (ZenMux)' },
-        { providerID: 'zenmux', modelID: 'xiaomi/mimo-v2-flash-free', name: 'Mimo v2 Flash (ZenMux)' },
+        { model: 'zenmux/z-ai/glm-4.6v-flash-free', name: 'GLM 4.6v Flash (ZenMux)' },
+        { model: 'zenmux/kuaishou/kat-coder-pro-v1-free', name: 'Kat Coder Pro (ZenMux)' },
+        { model: 'zenmux/xiaomi/mimo-v2-flash-free', name: 'Mimo v2 Flash (ZenMux)' },
         
-        // OpenCode (última opção, pode ter problemas)
-        { providerID: 'opencode', modelID: 'glm-4.7-free', name: 'GLM-4.7 (OpenCode)' },
-        { providerID: 'opencode', modelID: 'minimax-m2.1-free', name: 'MiniMax M2.1 (OpenCode)' }
+        // OpenCode (última opção)
+        { model: 'opencode/glm-4.7-free', name: 'GLM-4.7 (OpenCode)' },
+        { model: 'opencode/minimax-m2.1-free', name: 'MiniMax M2.1 (OpenCode)' }
       ];
 
       let sessionCreated = false;
@@ -75,13 +75,8 @@ export class ChatEngine {
           
           const sessionResponse = await this.sdk.session.create({
             body: {
-              name: 'ChatIAS-Session',
-              model: {
-                providerID: modelConfig.providerID,
-                modelID: modelConfig.modelID,
-                temperature: 0.7,
-                maxTokens: 2000  // Configuração conservadora para modelos free
-              }
+              title: `ChatIAS - ${modelConfig.name}`,
+              model: modelConfig.model  // Formato simples: "provider/model"
             }
           });
 
@@ -312,14 +307,8 @@ Respond with ONLY the intent type, nothing else.`;
           path: { id: this.sdkSessionId },
           body: {
             role: 'user',
-            parts: [{ type: 'text', text: message }],  // SDK espera parts com type e text
-            // FORÇA o modelo em cada request para garantir
-            model: this.currentModel ? {
-              providerID: this.currentModel.providerID,
-              modelID: this.currentModel.modelID,
-              temperature: 0.7,
-              maxTokens: 2000
-            } : undefined
+            parts: [{ type: 'text', text: message }]
+            // NÃO força o modelo aqui - usa o da sessão
           }
         });
 
@@ -329,31 +318,31 @@ Respond with ONLY the intent type, nothing else.`;
         logger.info('mcp', `SDK raw response: ${JSON.stringify(response).substring(0, 500)}`, null, requestId);
         logger.debug('mcp', `SDK response type: ${typeof response}, hasData: ${!!response?.data}`, null, requestId);
 
-        // SDK retorna mensagem no formato { data: { messages: [...] } }
+        // SDK retorna mensagem no formato { data: { parts: [...] } }
         let text = '';
         if (response && response.data) {
           logger.debug('mcp', `SDK data keys: ${Object.keys(response.data).join(', ')}`, null, requestId);
           
-          // Formato com array de mensagens
-          if (response.data.messages && Array.isArray(response.data.messages)) {
+          // Formato correto: data.parts[] com type: "text"
+          if (response.data.parts && Array.isArray(response.data.parts)) {
+            const textPart = response.data.parts.find(p => p.type === 'text');
+            if (textPart) {
+              text = textPart.text || '';
+            }
+          }
+          
+          // Checar se tem erro no response (data.info.error)
+          if (response.data.info && response.data.info.error) {
+            logger.error('mcp', `SDK returned error: ${JSON.stringify(response.data.info.error)}`, null, requestId);
+          }
+          
+          // Fallback: formato antigo com messages
+          if (!text && response.data.messages && Array.isArray(response.data.messages)) {
             logger.debug('mcp', `SDK has ${response.data.messages.length} messages`, null, requestId);
             const assistantMsg = response.data.messages.find(m => m.role === 'assistant');
             if (assistantMsg && assistantMsg.parts && assistantMsg.parts[0]) {
               text = assistantMsg.parts[0].text || assistantMsg.parts[0].content || '';
             }
-          }
-          
-          // Checar se tem erro no response
-          if (response.data.info && response.data.info.error) {
-            logger.error('mcp', `SDK returned error: ${JSON.stringify(response.data.info.error)}`, null, requestId);
-          }
-          
-          // Fallback: tenta outros formatos
-          if (!text && response.data.content) {
-            text = response.data.content;
-          }
-          if (!text && typeof response.data === 'string') {
-            text = response.data;
           }
         }
 
