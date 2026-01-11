@@ -1,0 +1,1008 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ChatIAS Pro 2.0 - Smart Chat</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    :root {
+      --bg-primary: #1a1a2e;
+      --bg-secondary: #16213e;
+      --bg-tertiary: #0f3460;
+      --text-primary: #eee;
+      --text-secondary: #aaa;
+      --accent: #e94560;
+      --success: #4ade80;
+      --warning: #fbbf24;
+      --error: #ef4444;
+      --info: #60a5fa;
+      --agent-color: #8b5cf6;
+      --tool-color: #06b6d4;
+      --kb-color: #f59e0b;
+      --mcp-color: #ec4899;
+      --intent-color: #14b8a6;
+      --request-color: #6366f1;
+    }
+
+    body {
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* Header */
+    .header {
+      background: var(--bg-secondary);
+      padding: 1rem 2rem;
+      border-bottom: 1px solid var(--bg-tertiary);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .header h1 {
+      font-size: 1.5rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .header h1 span {
+      color: var(--accent);
+    }
+
+    .system-info {
+      display: flex;
+      gap: 1.5rem;
+      font-size: 0.85rem;
+      color: var(--text-secondary);
+    }
+
+    .system-info .stat {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+    }
+
+    .system-info .stat-value {
+      color: var(--success);
+      font-weight: bold;
+    }
+
+    /* Main Layout */
+    .main {
+      flex: 1;
+      display: grid;
+      grid-template-columns: 1fr 380px;
+      gap: 0;
+      overflow: hidden;
+    }
+
+    /* Chat Area */
+    .chat-container {
+      display: flex;
+      flex-direction: column;
+      border-right: 1px solid var(--bg-tertiary);
+    }
+
+    .messages {
+      flex: 1;
+      overflow-y: auto;
+      padding: 1.5rem;
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+
+    .message {
+      max-width: 85%;
+      padding: 1rem 1.25rem;
+      border-radius: 12px;
+      line-height: 1.5;
+    }
+
+    .message.user {
+      align-self: flex-end;
+      background: var(--bg-tertiary);
+      border-bottom-right-radius: 4px;
+    }
+
+    .message.assistant {
+      align-self: flex-start;
+      background: var(--bg-secondary);
+      border-bottom-left-radius: 4px;
+    }
+
+    .message-header {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      margin-bottom: 0.5rem;
+      font-size: 0.8rem;
+      color: var(--text-secondary);
+    }
+
+    .message-header .agent-badge {
+      background: var(--agent-color);
+      color: white;
+      padding: 0.15rem 0.5rem;
+      border-radius: 4px;
+      font-size: 0.75rem;
+    }
+
+    .message-header .duration {
+      color: var(--success);
+    }
+
+    .message-content {
+      white-space: pre-wrap;
+      font-size: 0.95rem;
+    }
+
+    .message-content strong {
+      color: var(--accent);
+    }
+
+    /* Input Area */
+    .input-area {
+      padding: 1rem 1.5rem;
+      background: var(--bg-secondary);
+      border-top: 1px solid var(--bg-tertiary);
+    }
+
+    .input-row {
+      display: flex;
+      gap: 0.75rem;
+    }
+
+    .agent-select {
+      background: var(--bg-tertiary);
+      border: 1px solid var(--bg-tertiary);
+      color: var(--text-primary);
+      padding: 0.75rem 1rem;
+      border-radius: 8px;
+      font-size: 0.9rem;
+      cursor: pointer;
+    }
+
+    .input-field {
+      flex: 1;
+      background: var(--bg-tertiary);
+      border: 1px solid var(--bg-tertiary);
+      color: var(--text-primary);
+      padding: 0.75rem 1rem;
+      border-radius: 8px;
+      font-size: 0.95rem;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    .input-field:focus {
+      border-color: var(--accent);
+    }
+
+    .send-btn {
+      background: var(--accent);
+      color: white;
+      border: none;
+      padding: 0.75rem 1.5rem;
+      border-radius: 8px;
+      font-size: 0.95rem;
+      cursor: pointer;
+      transition: opacity 0.2s;
+    }
+
+    .send-btn:hover {
+      opacity: 0.9;
+    }
+
+    .send-btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    /* Logs Panel */
+    .logs-panel {
+      background: var(--bg-secondary);
+      display: flex;
+      flex-direction: column;
+    }
+
+    .logs-header {
+      padding: 1rem 1.25rem;
+      border-bottom: 1px solid var(--bg-tertiary);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .logs-header h2 {
+      font-size: 1rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .clear-logs-btn {
+      background: transparent;
+      border: 1px solid var(--text-secondary);
+      color: var(--text-secondary);
+      padding: 0.4rem 0.75rem;
+      border-radius: 4px;
+      font-size: 0.75rem;
+      cursor: pointer;
+    }
+
+    .clear-logs-btn:hover {
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+
+    /* Legend */
+    .legend {
+      padding: 0.75rem 1.25rem;
+      background: var(--bg-primary);
+      border-bottom: 1px solid var(--bg-tertiary);
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.75rem;
+      font-size: 0.75rem;
+    }
+
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 0.35rem;
+    }
+
+    .legend-icon {
+      width: 16px;
+      height: 16px;
+      border-radius: 4px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.7rem;
+    }
+
+    .legend-icon.agent { background: var(--agent-color); }
+    .legend-icon.tool { background: var(--tool-color); }
+    .legend-icon.kb { background: var(--kb-color); }
+    .legend-icon.mcp { background: var(--mcp-color); }
+    .legend-icon.success { background: var(--success); }
+    .legend-icon.error { background: var(--error); }
+    .legend-icon.info { background: var(--info); }
+    .legend-icon.intent { background: var(--intent-color); }
+    .legend-icon.request { background: var(--request-color); }
+
+    /* Logs List */
+    .logs-list {
+      flex: 1;
+      overflow-y: auto;
+      padding: 0.75rem;
+    }
+
+    .log-entry {
+      display: flex;
+      gap: 0.5rem;
+      padding: 0.5rem 0.75rem;
+      border-radius: 6px;
+      margin-bottom: 0.35rem;
+      background: var(--bg-primary);
+      font-size: 0.8rem;
+      animation: fadeIn 0.3s ease;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateX(10px); }
+      to { opacity: 1; transform: translateX(0); }
+    }
+
+    .log-icon {
+      width: 20px;
+      height: 20px;
+      border-radius: 4px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.7rem;
+      flex-shrink: 0;
+    }
+
+    .log-icon.agent { background: var(--agent-color); }
+    .log-icon.tool { background: var(--tool-color); }
+    .log-icon.kb { background: var(--kb-color); }
+    .log-icon.mcp { background: var(--mcp-color); }
+    .log-icon.success { background: var(--success); color: #000; }
+    .log-icon.error { background: var(--error); }
+    .log-icon.info { background: var(--info); }
+    .log-icon.validate { background: #22c55e; }
+    .log-icon.transform { background: #a855f7; }
+    .log-icon.intent { background: var(--intent-color); }
+    .log-icon.request { background: var(--request-color); }
+    .log-icon.response { background: var(--success); color: #000; }
+
+    /* Intent Badge */
+    .intent-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      background: var(--intent-color);
+      color: white;
+      padding: 0.2rem 0.6rem;
+      border-radius: 4px;
+      font-size: 0.7rem;
+      margin-left: 0.5rem;
+    }
+
+    .intent-method {
+      background: rgba(0,0,0,0.2);
+      padding: 0.1rem 0.4rem;
+      border-radius: 3px;
+      font-size: 0.65rem;
+    }
+
+    /* Request ID */
+    .request-id {
+      font-size: 0.65rem;
+      color: var(--request-color);
+      font-family: monospace;
+      margin-left: 0.5rem;
+    }
+
+    /* SSE Status */
+    .sse-status {
+      display: flex;
+      align-items: center;
+      gap: 0.35rem;
+      font-size: 0.75rem;
+    }
+
+    .sse-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--error);
+    }
+
+    .sse-dot.connected {
+      background: var(--success);
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+
+    .log-content {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .log-message {
+      color: var(--text-primary);
+      word-break: break-word;
+    }
+
+    .log-meta {
+      display: flex;
+      gap: 0.5rem;
+      margin-top: 0.25rem;
+      font-size: 0.7rem;
+      color: var(--text-secondary);
+    }
+
+    .log-source {
+      color: var(--agent-color);
+    }
+
+    .log-time {
+      color: var(--text-secondary);
+    }
+
+    /* Loading */
+    .loading {
+      display: inline-flex;
+      gap: 4px;
+      align-items: center;
+    }
+
+    .loading-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--accent);
+      animation: bounce 1.4s infinite ease-in-out both;
+    }
+
+    .loading-dot:nth-child(1) { animation-delay: -0.32s; }
+    .loading-dot:nth-child(2) { animation-delay: -0.16s; }
+
+    @keyframes bounce {
+      0%, 80%, 100% { transform: scale(0); }
+      40% { transform: scale(1); }
+    }
+
+    /* Empty state */
+    .empty-state {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100%;
+      color: var(--text-secondary);
+      text-align: center;
+      padding: 2rem;
+    }
+
+    .empty-state-icon {
+      font-size: 3rem;
+      margin-bottom: 1rem;
+      opacity: 0.5;
+    }
+
+    /* Examples */
+    .examples {
+      padding: 1rem 1.5rem;
+      background: var(--bg-primary);
+      border-top: 1px solid var(--bg-tertiary);
+    }
+
+    .examples-title {
+      font-size: 0.75rem;
+      color: var(--text-secondary);
+      margin-bottom: 0.5rem;
+    }
+
+    .example-chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+    }
+
+    .example-chip {
+      background: var(--bg-tertiary);
+      border: none;
+      color: var(--text-primary);
+      padding: 0.4rem 0.75rem;
+      border-radius: 20px;
+      font-size: 0.8rem;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+
+    .example-chip:hover {
+      background: var(--accent);
+    }
+
+    /* Scrollbar */
+    ::-webkit-scrollbar {
+      width: 6px;
+    }
+
+    ::-webkit-scrollbar-track {
+      background: var(--bg-primary);
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: var(--bg-tertiary);
+      border-radius: 3px;
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+      background: var(--accent);
+    }
+  </style>
+</head>
+<body>
+  <header class="header">
+    <h1>ChatIAS <span>Pro 2.0</span></h1>
+    <div class="system-info" id="systemInfo">
+      <div class="stat">Agentes: <span class="stat-value" id="agentCount">-</span></div>
+      <div class="stat">Tools: <span class="stat-value" id="toolCount">-</span></div>
+      <div class="stat">KBs: <span class="stat-value" id="kbCount">-</span></div>
+      <div class="stat">MCPs: <span class="stat-value" id="mcpCount">-</span></div>
+    </div>
+  </header>
+
+  <main class="main">
+    <!-- Chat Area -->
+    <div class="chat-container">
+      <div class="messages" id="messages">
+        <div class="empty-state">
+          <div class="empty-state-icon">AI</div>
+          <p>Envie uma mensagem para testar os agentes.</p>
+          <p style="font-size: 0.85rem; margin-top: 0.5rem;">Os logs mostrarao cada passo da execucao.</p>
+        </div>
+      </div>
+
+      <div class="examples">
+        <div class="examples-title">Exemplos para testar deteccao inteligente:</div>
+        <div class="example-chips">
+          <button class="example-chip" data-example="Ola! Como voce esta?">Saudacao</button>
+          <button class="example-chip" data-example="O que e JavaScript?">Pergunta</button>
+          <button class="example-chip" data-example="const x = 1; function test() { return x * 2; }">Codigo JS</button>
+          <button class="example-chip" data-example='{"name": "Joao", "age": 25, "email": "joao@test.com"}'>JSON Valido</button>
+          <button class="example-chip" data-example="function test( { console.log('error') }">Sintaxe Invalida</button>
+          <button class="example-chip" data-example="me ajuda a entender esse codigo">Ambiguo (LLM)</button>
+          <button class="example-chip" data-example="Tchau, ate mais!">Despedida</button>
+        </div>
+      </div>
+
+      <div class="input-area">
+        <div class="input-row">
+          <select class="agent-select" id="agentSelect">
+            <option value="auto">Auto-detectar</option>
+            <option value="code_analyzer">CodeAnalyzer</option>
+            <option value="data_processor">DataProcessor</option>
+          </select>
+          <input 
+            type="text" 
+            class="input-field" 
+            id="messageInput" 
+            placeholder="Digite codigo ou dados para analisar..."
+            autocomplete="off"
+          >
+          <button class="send-btn" id="sendBtn">Enviar</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Logs Panel -->
+    <div class="logs-panel">
+      <div class="logs-header">
+        <h2>Logs em Tempo Real</h2>
+        <div style="display: flex; align-items: center; gap: 1rem;">
+          <div class="sse-status">
+            <div class="sse-dot" id="sseDot"></div>
+            <span id="sseStatus">Desconectado</span>
+          </div>
+          <button class="clear-logs-btn" id="clearLogsBtn">Limpar</button>
+        </div>
+      </div>
+
+      <div class="legend">
+        <div class="legend-item">
+          <div class="legend-icon request">R</div>
+          <span>Request</span>
+        </div>
+        <div class="legend-item">
+          <div class="legend-icon intent">I</div>
+          <span>Intent</span>
+        </div>
+        <div class="legend-item">
+          <div class="legend-icon agent">A</div>
+          <span>Agente</span>
+        </div>
+        <div class="legend-item">
+          <div class="legend-icon tool">T</div>
+          <span>Tool</span>
+        </div>
+        <div class="legend-item">
+          <div class="legend-icon mcp">M</div>
+          <span>LLM/MCP</span>
+        </div>
+        <div class="legend-item">
+          <div class="legend-icon success">OK</div>
+          <span>Sucesso</span>
+        </div>
+        <div class="legend-item">
+          <div class="legend-icon error">!</div>
+          <span>Erro</span>
+        </div>
+      </div>
+
+      <div class="logs-list" id="logsList">
+        <div class="empty-state" style="font-size: 0.85rem;">
+          <p>Os logs aparecerao aqui</p>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    const API_BASE = '';
+    let isProcessing = false;
+    let eventSource = null;
+    let currentRequestId = null;
+
+    // Elements
+    const messagesEl = document.getElementById('messages');
+    const logsListEl = document.getElementById('logsList');
+    const messageInput = document.getElementById('messageInput');
+    const sendBtn = document.getElementById('sendBtn');
+    const agentSelect = document.getElementById('agentSelect');
+    const clearLogsBtn = document.getElementById('clearLogsBtn');
+    const sseDot = document.getElementById('sseDot');
+    const sseStatus = document.getElementById('sseStatus');
+
+    // Connect to SSE for real-time logs
+    function connectSSE() {
+      if (eventSource) {
+        eventSource.close();
+      }
+
+      try {
+        eventSource = new EventSource(`${API_BASE}/api/logs/stream`);
+
+        eventSource.onopen = () => {
+          sseDot.classList.add('connected');
+          sseStatus.textContent = 'Conectado';
+          console.log('SSE conectado');
+        };
+
+        eventSource.onmessage = (event) => {
+          try {
+            const data = JSON.parse(event.data);
+            
+            // Ignore heartbeats
+            if (data.type === 'heartbeat') return;
+            
+            // Only show logs for current request or if no filter
+            if (currentRequestId && data.requestId && data.requestId !== currentRequestId) {
+              return;
+            }
+
+            addLogEntry({
+              timestamp: data.timestamp || new Date().toISOString(),
+              message: data.message,
+              icon: mapCategoryToIcon(data.category, data.level),
+              source: data.category || data.source,
+              requestId: data.requestId
+            });
+          } catch (e) {
+            console.error('Erro ao processar log SSE:', e);
+          }
+        };
+
+        eventSource.onerror = () => {
+          sseDot.classList.remove('connected');
+          sseStatus.textContent = 'Desconectado';
+          console.log('SSE desconectado, reconectando em 3s...');
+          
+          setTimeout(() => {
+            if (!eventSource || eventSource.readyState === EventSource.CLOSED) {
+              connectSSE();
+            }
+          }, 3000);
+        };
+      } catch (e) {
+        console.error('Erro ao conectar SSE:', e);
+        sseDot.classList.remove('connected');
+        sseStatus.textContent = 'Erro';
+      }
+    }
+
+    // Map category to icon
+    function mapCategoryToIcon(category, level) {
+      if (level === 'error') return 'error';
+      if (level === 'success') return 'success';
+      
+      const mapping = {
+        'request': 'request',
+        'intent': 'intent',
+        'agent': 'agent',
+        'tool': 'tool',
+        'mcp': 'mcp',
+        'kb': 'kb',
+        'response': 'success'
+      };
+      return mapping[category] || 'info';
+    }
+
+    // Load system info
+    async function loadSystemInfo() {
+      try {
+        const res = await fetch(`${API_BASE}/api/system`);
+        const data = await res.json();
+        
+        document.getElementById('agentCount').textContent = data.agents?.total || 0;
+        document.getElementById('toolCount').textContent = data.tools?.total || 0;
+        document.getElementById('kbCount').textContent = data.knowledgeBases?.total || 0;
+        document.getElementById('mcpCount').textContent = data.mcpProviders?.total || 0;
+      } catch (error) {
+        console.error('Erro ao carregar info:', error);
+      }
+    }
+
+    // Add message to chat
+    function addMessage(type, content, meta = {}) {
+      // Remove empty state
+      const emptyState = messagesEl.querySelector('.empty-state');
+      if (emptyState) emptyState.remove();
+
+      const messageEl = document.createElement('div');
+      messageEl.className = `message ${type}`;
+
+      if (type === 'assistant') {
+        const header = document.createElement('div');
+        header.className = 'message-header';
+        
+        let headerHtml = '';
+        
+        // Agent badge
+        if (meta.agent) {
+          headerHtml += `<span class="agent-badge">${meta.agent}</span>`;
+        }
+        
+        // Intent detection method
+        if (meta.intentMethod) {
+          headerHtml += `<span class="intent-badge">
+            ${meta.intent || 'chat'}
+            <span class="intent-method">${meta.intentMethod}</span>
+          </span>`;
+        }
+        
+        // Duration
+        if (meta.duration) {
+          headerHtml += `<span class="duration">${meta.duration}ms</span>`;
+        }
+        
+        // Request ID
+        if (meta.requestId) {
+          headerHtml += `<span class="request-id">#${meta.requestId.slice(0, 8)}</span>`;
+        }
+        
+        header.innerHTML = headerHtml;
+        messageEl.appendChild(header);
+      }
+
+      const contentEl = document.createElement('div');
+      contentEl.className = 'message-content';
+      contentEl.innerHTML = formatContent(content);
+      messageEl.appendChild(contentEl);
+
+      messagesEl.appendChild(messageEl);
+      messagesEl.scrollTop = messagesEl.scrollHeight;
+    }
+
+    // Format content with markdown-like syntax
+    function formatContent(text) {
+      return text
+        .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+        .replace(/\n/g, '<br>');
+    }
+
+    // Add loading message
+    function addLoadingMessage() {
+      const messageEl = document.createElement('div');
+      messageEl.className = 'message assistant';
+      messageEl.id = 'loadingMessage';
+      messageEl.innerHTML = `
+        <div class="loading">
+          <div class="loading-dot"></div>
+          <div class="loading-dot"></div>
+          <div class="loading-dot"></div>
+        </div>
+      `;
+      messagesEl.appendChild(messageEl);
+      messagesEl.scrollTop = messagesEl.scrollHeight;
+    }
+
+    // Remove loading message
+    function removeLoadingMessage() {
+      const loadingEl = document.getElementById('loadingMessage');
+      if (loadingEl) loadingEl.remove();
+    }
+
+    // Get icon for log type
+    function getLogIconContent(icon) {
+      const icons = {
+        agent: 'A',
+        tool: 'T',
+        kb: 'K',
+        mcp: 'M',
+        success: 'OK',
+        error: '!',
+        info: 'i',
+        validate: 'V',
+        transform: 'Tr',
+        intent: 'I',
+        request: 'R',
+        response: 'OK'
+      };
+      return icons[icon] || 'i';
+    }
+
+    // Add log entry
+    function addLogEntry(log) {
+      // Remove empty state
+      const emptyState = logsListEl.querySelector('.empty-state');
+      if (emptyState) emptyState.remove();
+
+      const logEl = document.createElement('div');
+      logEl.className = 'log-entry';
+      
+      const iconClass = log.icon || 'info';
+      const time = new Date(log.timestamp).toLocaleTimeString();
+      
+      let reqIdHtml = '';
+      if (log.requestId) {
+        reqIdHtml = `<span class="request-id">#${log.requestId.slice(0, 8)}</span>`;
+      }
+      
+      logEl.innerHTML = `
+        <div class="log-icon ${iconClass}">${getLogIconContent(iconClass)}</div>
+        <div class="log-content">
+          <div class="log-message">${escapeHtml(log.message)}</div>
+          <div class="log-meta">
+            <span class="log-source">${log.agent || log.source || ''}</span>
+            <span class="log-time">${time}</span>
+            ${reqIdHtml}
+          </div>
+        </div>
+      `;
+
+      logsListEl.appendChild(logEl);
+      logsListEl.scrollTop = logsListEl.scrollHeight;
+    }
+
+    // Escape HTML
+    function escapeHtml(text) {
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+
+    // Clear logs
+    function clearLogs() {
+      logsListEl.innerHTML = `
+        <div class="empty-state" style="font-size: 0.85rem;">
+          <p>Os logs aparecerao aqui</p>
+        </div>
+      `;
+    }
+
+    // Send message
+    async function sendMessage() {
+      const message = messageInput.value.trim();
+      if (!message || isProcessing) return;
+
+      isProcessing = true;
+      sendBtn.disabled = true;
+      messageInput.disabled = true;
+
+      // Add user message
+      addMessage('user', message);
+      messageInput.value = '';
+
+      // Clear previous logs
+      clearLogs();
+      
+      // Generate request ID for filtering logs
+      currentRequestId = null;
+
+      // Add loading
+      addLoadingMessage();
+
+      // Add initial log
+      addLogEntry({
+        timestamp: new Date().toISOString(),
+        message: `Enviando mensagem para processamento`,
+        icon: 'request',
+        source: 'client'
+      });
+
+      try {
+        const res = await fetch(`${API_BASE}/api/chat`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            message,
+            agent: agentSelect.value
+          })
+        });
+
+        const data = await res.json();
+
+        // Store request ID for log filtering
+        if (data.requestId) {
+          currentRequestId = data.requestId;
+        }
+
+        // Remove loading
+        removeLoadingMessage();
+
+        if (data.success) {
+          // Add logs from response (if SSE didn't capture them)
+          if (data.logs && data.logs.length > 0) {
+            data.logs.forEach(log => addLogEntry({
+              ...log,
+              icon: mapCategoryToIcon(log.category, log.level),
+              source: log.category
+            }));
+          }
+
+          // Add success log with detection info
+          addLogEntry({
+            timestamp: new Date().toISOString(),
+            message: `Intent: ${data.intent || 'chat'} (${data.intentMethod || 'default'}) - Confianca: ${Math.round((data.intentConfidence || 0) * 100)}%`,
+            icon: 'intent',
+            source: 'intent-detector',
+            requestId: data.requestId
+          });
+
+          // Add completion log
+          addLogEntry({
+            timestamp: new Date().toISOString(),
+            message: `Resposta gerada em ${data.duration}ms`,
+            icon: 'success',
+            source: 'server',
+            requestId: data.requestId
+          });
+
+          // Add assistant message with all metadata
+          addMessage('assistant', data.response || JSON.stringify(data.result, null, 2), {
+            agent: data.agent?.name || data.agent?.id || (data.agentUsed ? data.agent : null),
+            duration: data.duration,
+            intent: data.intent,
+            intentMethod: data.intentMethod,
+            intentConfidence: data.intentConfidence,
+            requestId: data.requestId
+          });
+
+        } else {
+          // Add error log
+          addLogEntry({
+            timestamp: new Date().toISOString(),
+            message: `Erro: ${data.error}`,
+            icon: 'error',
+            source: 'server'
+          });
+
+          addMessage('assistant', `**Erro:** ${data.error}`, {});
+        }
+
+      } catch (error) {
+        removeLoadingMessage();
+        
+        addLogEntry({
+          timestamp: new Date().toISOString(),
+          message: `Erro de conexao: ${error.message}`,
+          icon: 'error',
+          source: 'client'
+        });
+
+        addMessage('assistant', `**Erro de conexao:** ${error.message}`, {});
+      }
+
+      isProcessing = false;
+      sendBtn.disabled = false;
+      messageInput.disabled = false;
+      messageInput.focus();
+    }
+
+    // Event listeners
+    sendBtn.addEventListener('click', sendMessage);
+    
+    messageInput.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') sendMessage();
+    });
+
+    clearLogsBtn.addEventListener('click', clearLogs);
+
+    // Example chips
+    document.querySelectorAll('.example-chip').forEach(chip => {
+      chip.addEventListener('click', () => {
+        messageInput.value = chip.dataset.example;
+        messageInput.focus();
+      });
+    });
+
+    // Init
+    loadSystemInfo();
+    connectSSE();
+    messageInput.focus();
+  </script>
+</body>
+</html>
