@@ -25,6 +25,8 @@ export class ChatEngine {
     this.sdk = null;
     this.sdkSessionId = null;
     this.currentModel = null;
+    this.currentModelIndex = 0;
+    this.freeModels = null;  // Será preenchido no initialize
     this.toolRegistry = null;
     this.agentRegistry = null;
     this.activeProvider = null;
@@ -45,7 +47,7 @@ export class ChatEngine {
     if (this.sdk) {
       // Lista de modelos free para tentar (em ordem de prioridade)
       // Formato: "provider/model" como string simples
-      const freeModels = [
+      this.freeModels = [
         // OpenRouter (geralmente mais rápido e confiável)
         { model: 'openrouter/google/gemini-2.0-flash-exp:free', name: 'Gemini 2.0 Flash (OpenRouter)' },
         { model: 'openrouter/qwen/qwen3-coder:free', name: 'Qwen3 Coder (OpenRouter)' },
@@ -67,7 +69,7 @@ export class ChatEngine {
       let lastError = null;
 
       // Tenta criar sessão com cada modelo até um funcionar
-      for (const modelConfig of freeModels) {
+      for (const modelConfig of this.freeModels) {
         if (sessionCreated) break;
 
         try {
@@ -84,13 +86,14 @@ export class ChatEngine {
           if (sessionResponse.data && sessionResponse.data.id) {
             this.sdkSessionId = sessionResponse.data.id;
             this.currentModel = modelConfig;
+            this.currentModelIndex = this.freeModels.indexOf(modelConfig);
             logger.success('chat', `SDK session created with ${modelConfig.name}: ${this.sdkSessionId}`);
             this.activeProvider = 'sdk';
             sessionCreated = true;
           }
         } catch (error) {
           lastError = error;
-          logger.warn('chat', `Model ${modelConfig.name} failed: ${error.message}`);
+          logger.warn('chat', `Model ${modelConfig.name} failed during creation: ${error.message}`);
         }
       }
 
@@ -334,7 +337,21 @@ Respond with ONLY the intent type, nothing else.`;
           
           // Checar se tem erro no response (data.info.error)
           if (response.data.info && response.data.info.error) {
-            logger.error('mcp', `SDK returned error: ${JSON.stringify(response.data.info.error)}`, null, requestId);
+            const errorMsg = response.data.info.error.data?.message || response.data.info.error.name;
+            logger.error('mcp', `SDK model error: ${errorMsg}`, null, requestId);
+            
+            // Se é erro de créditos/modelo, tenta próximo modelo
+            if (errorMsg.includes('credits') || errorMsg.includes('max_tokens') || 
+                errorMsg.includes('rate limit') || errorMsg.includes('quota')) {
+              logger.warn('mcp', `Model ${this.currentModel?.name} failed, trying next model...`, null, requestId);
+              
+              // Tenta recriar sessão com próximo modelo
+              const success = await this._tryNextModel(requestId);
+              if (success) {
+                // Recursão: tenta enviar a mensagem novamente com novo modelo
+                return await this._handleConversationalIntent(message, requestId);
+              }
+            }
           }
           
           // Fallback: formato antigo com messages
@@ -554,6 +571,51 @@ Respond with ONLY the intent type, nothing else.`;
       toolsCount: this.toolRegistry?.size() || 0,
       agentsCount: this.agentRegistry?.size() || 0
     };
+  }
+
+  /**
+   * Tenta próximo modelo da lista
+   */
+  async _tryNextModel(requestId) {
+    if (!this.freeModels || !this.sdk) return false;
+    
+    const nextIndex = this.currentModelIndex + 1;
+    if (nextIndex >= this.freeModels.length) {
+      logger.warn('chat', 'No more models to try', null, requestId);
+      return false;
+    }
+
+    const nextModel = this.freeModels[nextIndex];
+    logger.info('chat', `Trying next model: ${nextModel.name}...`, null, requestId);
+
+    try {
+      // Fecha sessão atual
+      if (this.sdkSessionId) {
+        await this.sdk.session.delete({ path: { id: this.sdkSessionId } });
+      }
+
+      // Cria nova sessão com próximo modelo
+      const sessionResponse = await this.sdk.session.create({
+        body: {
+          title: `ChatIAS - ${nextModel.name}`,
+          model: nextModel.model,
+          maxTokens: 2000
+        }
+      });
+
+      if (sessionResponse.data && sessionResponse.data.id) {
+        this.sdkSessionId = sessionResponse.data.id;
+        this.currentModel = nextModel;
+        this.currentModelIndex = nextIndex;
+        logger.success('chat', `Switched to ${nextModel.name}: ${this.sdkSessionId}`, null, requestId);
+        return true;
+      }
+
+      return false;
+    } catch (error) {
+      logger.warn('chat', `Failed to switch to ${nextModel.name}: ${error.message}`, null, requestId);
+      return false;
+    }
   }
 
   /**
