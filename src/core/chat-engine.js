@@ -344,12 +344,18 @@ Respond with ONLY the intent type, nothing else.`;
             if (errorMsg.includes('credits') || errorMsg.includes('max_tokens') || 
                 errorMsg.includes('rate limit') || errorMsg.includes('quota')) {
               logger.warn('mcp', `Model ${this.currentModel?.name} failed, trying next model...`, null, requestId);
+              logger.info('mcp', `Current model index: ${this.currentModelIndex}, Total models: ${this.freeModels?.length}`, null, requestId);
               
               // Tenta recriar sessão com próximo modelo
               const success = await this._tryNextModel(requestId);
+              logger.info('mcp', `Model switch success: ${success}`, null, requestId);
+              
               if (success) {
                 // Recursão: tenta enviar a mensagem novamente com novo modelo
+                logger.info('mcp', `Retrying message with new model...`, null, requestId);
                 return await this._handleConversationalIntent(message, requestId);
+              } else {
+                logger.warn('mcp', `Failed to switch model, falling back...`, null, requestId);
               }
             }
           }
