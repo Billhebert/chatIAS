@@ -76,7 +76,8 @@ export class ChatEngine {
           const sessionResponse = await this.sdk.session.create({
             body: {
               title: `ChatIAS - ${modelConfig.name}`,
-              model: modelConfig.model  // Formato simples: "provider/model"
+              model: modelConfig.model,  // Formato simples: "provider/model"
+              maxTokens: 2000  // IMPORTANTE: limita tokens para modelos free
             }
           });
 

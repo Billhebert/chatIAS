@@ -124,7 +124,9 @@ async function initSystem() {
           port: 4096,
           timeout: 10000,
           config: {
-            model: { provider: 'opencode', model: 'minimax-m2.1-free' }
+            model: 'openrouter/google/gemini-2.0-flash-exp:free',
+            maxTokens: 2000,  // IMPORTANTE: limita tokens para modelos free
+            temperature: 0.7
           }
         });
         sdkUrl = opencodeServer.url;
