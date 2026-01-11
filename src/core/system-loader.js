@@ -10,12 +10,19 @@
 
 import fs from 'fs';
 import path from 'path';
-import { fileURLToPath } from 'url';
+import { fileURLToPath, pathToFileURL } from 'url';
 import EventEmitter from 'events';
 import { validateConfigCompleteStrict, loadAndValidateConfig } from './config-validator.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+
+/**
+ * Converte path para file:// URL (compatível com Windows)
+ */
+function pathToImportURL(filepath) {
+  return pathToFileURL(filepath).href;
+}
 
 /**
  * Registry genérico para gerenciar componentes
@@ -210,7 +217,7 @@ export class SystemLoader extends EventEmitter {
           continue;
         }
 
-        const toolModule = await import(toolPath);
+        const toolModule = await import(pathToImportURL(toolPath));
         const ToolClass = toolModule[toolConfig.class] || toolModule.default;
 
         if (!ToolClass) {
@@ -258,7 +265,7 @@ export class SystemLoader extends EventEmitter {
           continue;
         }
 
-        const kbModule = await import(kbPath);
+        const kbModule = await import(pathToImportURL(kbPath));
         const KBClass = kbModule[kbCfg.class] || kbModule.default;
 
         if (!KBClass) {
@@ -306,7 +313,7 @@ export class SystemLoader extends EventEmitter {
           continue;
         }
 
-        const mcpModule = await import(mcpPath);
+        const mcpModule = await import(pathToImportURL(mcpPath));
         const MCPClass = mcpModule[mcpCfg.class] || mcpModule.default;
 
         if (!MCPClass) {
@@ -352,7 +359,7 @@ export class SystemLoader extends EventEmitter {
           continue;
         }
 
-        const agentModule = await import(agentPath);
+        const agentModule = await import(pathToImportURL(agentPath));
         const AgentClass = agentModule[agentConfig.class] || agentModule.default;
 
         if (!AgentClass) {
