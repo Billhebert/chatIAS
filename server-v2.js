@@ -1,14 +1,13 @@
 /**
- * Server V2 - Servidor web do ChatIAS com ChatEngine
+ * server-v2.js - ChatIAS Pro 2.0 - Production Version
  * 
- * Arquitetura correta:
- * - Chat é o centro (usa LLM para entender e responder)
- * - Agentes são ferramentas que o chat PODE usar quando necessário
- * - Ollama como provider principal, SDK como fallback
- * 
- * v2.1 - Com sistema de logs detalhado
+ * Funcionalidades:
+ * - Verifica se OpenCode já está rodando (porta 4096)
+ * - Se sim, usa o existente (testando se funciona)
+ * - Se não, cria novo servidor (porta 4097)
+ * - Sem timeout no SDK (aguarda indefinidamente)
+ * - shell: true para Windows
  */
-
 
 import express from "express";
 import cors from "cors";
@@ -17,36 +16,32 @@ import { fileURLToPath } from "url";
 import { createSystem } from "./src/core/system-loader.js";
 import { ChatEngine } from "./src/core/chat-engine.js";
 import { logger } from "./src/core/logger.js";
-import { createOpencodeClient } from "./sdk/client.js";
-import { createOpencodeServer } from "./sdk/server.js";
-
+import { createOpencodeClient } from "@opencode-ai/sdk";
+import { spawn } from "node:child_process";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-
 const app = express();
 const PORT = process.env.PORT || 4174;
-
+const OPENCODE_CLI = path.normalize(process.env.OPENCODE_CLI || "E:\\app\\OpenCode\\opencode-cli.exe");
+const OPENCODE_PORT = process.env.OPENCODE_PORT || 4097;  // Porta para NOVO servidor
 
 // Sistema e ChatEngine globais
 let system = null;
 let chatEngine = null;
-let opencodeServer = null;  // Servidor OpenCode (se iniciado automaticamente)
-
+let opencodeProcess = null;  // Processo do opencode-cli.exe (se criado)
 
 // Middleware
 app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname, "public")));
 
-
-// Middleware de logging para requests HTTP
+// Middleware de logging
 app.use((req, res, next) => {
   const requestId = `http_${Date.now()}`;
   req.requestId = requestId;
   
-  // Loga requests (exceto static files e health checks)
   if (!req.path.startsWith('/chat-v2') && 
       !req.path.includes('.') && 
       req.path !== '/api/health' &&
@@ -54,7 +49,6 @@ app.use((req, res, next) => {
     logger.request(req.method, req.path, req.body, requestId);
   }
   
-  // Captura response
   const startTime = Date.now();
   res.on('finish', () => {
     const duration = Date.now() - startTime;
@@ -69,17 +63,137 @@ app.use((req, res, next) => {
   next();
 });
 
+/**
+ * Gerencia o servidor OpenCode
+ * 1. Tenta usar servidor existente na porta 4096
+ * 2. Se não funcionar, cria novo na porta 4097
+ */
+async function manageOpenCodeServer() {
+  // 1. Primeiro tenta usar servidor existente
+  const existingPort = 4096;
+  const existingUrl = `http://127.0.0.1:${existingPort}`;
+  
+  try {
+    logger.info('mcp', `Checking for existing OpenCode server on port ${existingPort}...`);
+    
+    const healthCheck = await fetch(`${existingUrl}/global/health`, {
+      method: 'GET',
+      signal: AbortSignal.timeout(3000)
+    });
+    
+    if (healthCheck.ok) {
+      // Encontrou servidor existente - testa se funciona
+      logger.success('mcp', `✅ Found existing OpenCode server`, { url: existingUrl });
+      logger.info('mcp', `Testing if existing server is working...`);
+      
+      const testClient = createOpencodeClient({ baseUrl: existingUrl });
+      try {
+        const testSession = await testClient.session.create({
+          body: { title: "test_connection" }
+        });
+        logger.success('mcp', `✅ Existing server is working!`, { 
+          sessionId: testSession.data?.id 
+        });
+        logger.success('mcp', `✅ Using existing server (not creating new one)`);
+        return existingUrl;
+      } catch (sessionError) {
+        logger.warn('mcp', `⚠️ Existing server not working: ${sessionError.message}`);
+        logger.warn('mcp', `⚠️ Will create new server on port ${OPENCODE_PORT}`);
+        throw sessionError;  // Vai para o catch e cria novo
+      }
+    }
+  } catch (e) {
+    logger.info('mcp', `No working existing server found, creating new one...`);
+  }
+  
+  // 2. Cria novo servidor OpenCode
+  const newServerUrl = `http://127.0.0.1:${OPENCODE_PORT}`;
+  logger.info('mcp', `Creating NEW OpenCode server on port ${OPENCODE_PORT}`, { 
+    cli: OPENCODE_CLI 
+  });
+  
+  return new Promise((resolve, reject) => {
+    const args = [`serve`, `--hostname=127.0.0.1`, `--port=${OPENCODE_PORT}`];
+    
+    logger.info('mcp', `Executing: ${OPENCODE_CLI} ${args.join(' ')}`, {
+      env: `OPENCODE_CONFIG_CONTENT={model:"opencode/glm-4.7-free",maxTokens:2000}`
+    });
+    
+    opencodeProcess = spawn(OPENCODE_CLI, args, {
+      shell: true,  // IMPORTANTE para Windows
+      env: {
+        ...process.env,
+        OPENCODE_CONFIG_CONTENT: JSON.stringify({
+          model: "opencode/glm-4.7-free",
+          maxTokens: 2000,  // IMPORTANTE: limita tokens para modelos free
+          temperature: 0.7
+        })
+      }
+    });
+    
+    let output = "";
+    let hasResolved = false;
+    
+    opencodeProcess.stdout?.on('data', (chunk) => {
+      if (hasResolved) return;
+      
+      const text = chunk.toString();
+      output += text;
+      
+      const lines = output.split('\n');
+      for (const line of lines) {
+        if (line.includes('listening') || line.includes('listening on')) {
+          const match = line.match(/on\s+(https?:\/\/[^\s]+)/);
+          if (match) {
+            hasResolved = true;
+            logger.success('mcp', `✅ OpenCode server started`, { 
+              url: match[1], 
+              port: OPENCODE_PORT,
+              config: 'maxTokens:2000'
+            });
+            resolve(match[1]);
+            return;
+          }
+        }
+      }
+    });
+    
+    opencodeProcess.stderr?.on('data', (chunk) => {
+      const text = chunk.toString();
+      logger.error('mcp', `OpenCode stderr: ${text}`);
+    });
+    
+    opencodeProcess.on('exit', (code) => {
+      logger.warn('mcp', `OpenCode process exited with code ${code}`);
+      if (code !== 0 && !hasResolved) {
+        reject(new Error(`OpenCode exited with code ${code}`));
+      }
+    });
+    
+    opencodeProcess.on('error', (error) => {
+      logger.error('mcp', `Failed to spawn OpenCode: ${error.message}`);
+      reject(error);
+    });
+    
+    // Timeout de 10s para startup
+    setTimeout(() => {
+      if (!hasResolved && opencodeProcess && !output.includes('listening')) {
+        logger.warn('mcp', `OpenCode startup timeout after 10s, trying to continue...`);
+        resolve(newServerUrl);
+      }
+    }, 10000);
+  });
+}
 
 /**
  * Inicializa o sistema
  */
 async function initSystem() {
-  logger.info('system', '╔════════════════════════════════════════════════════════╗');
-  logger.info('system', '║           ChatIAS Pro 2.0 - Initializing               ║');
-  logger.info('system', '╚════════════════════════════════════════════════════════╝');
+  logger.info('system', '╔══════════════════════════════════════════════════════╗');
+  logger.info('system', '║           ChatIAS Pro 2.0 - FINAL VERSION          ║');
+  logger.info('system', '╚══════════════════════════════════════════════════════╝');
 
-
-  // 1. Carrega o sistema (agents, tools, KBs, MCPs)
+  // 1. Carrega o sistema
   logger.info('system', 'Loading system configuration...');
   
   system = await createSystem({
@@ -88,7 +202,6 @@ async function initSystem() {
     strictValidation: false
   });
 
-
   logger.success('system', `System loaded`, {
     agents: system.agentRegistry.size(),
     tools: system.toolRegistry.size(),
@@ -96,62 +209,36 @@ async function initSystem() {
     mcps: system.mcpRegistry.size()
   });
 
-
-  // 2. Configura SDK (OpenCode) como fallback
+  // 2. Gerencia servidor OpenCode (usa existente ou cria novo)
   let sdkClient = null;
-  let sdkUrl = process.env.OPENCODE_URL || "http://localhost:4096";
-  const autoStartSdk = process.env.OPENCODE_AUTOSTART === 'true';
+  let opencodeUrl = null;
   
   try {
-    // Testa se já existe um servidor OpenCode rodando
-    let sdkConnected = false;
-    try {
-      const healthCheck = await fetch(`${sdkUrl}/global/health`, { 
-        method: 'GET',
-        signal: AbortSignal.timeout(3000)
-      });
-      sdkConnected = healthCheck.ok;
-    } catch (e) {
-      sdkConnected = false;
-    }
+    opencodeUrl = await manageOpenCodeServer();
     
-    // Se não está conectado e autostart está habilitado, inicia o servidor
-    if (!sdkConnected && autoStartSdk) {
-      logger.info('mcp', 'Starting OpenCode server automatically...', null);
-      try {
-        opencodeServer = await createOpencodeServer({
-          hostname: '127.0.0.1',
-          port: 4096,
-          timeout: 10000,
-          config: {
-            model: 'openrouter/google/gemini-2.0-flash-exp:free',
-            maxTokens: 2000,  // IMPORTANTE: limita tokens para modelos free
-            temperature: 0.7
-          }
-        });
-        sdkUrl = opencodeServer.url;
-        sdkConnected = true;
-        logger.success('mcp', `OpenCode server started`, { url: sdkUrl });
-      } catch (e) {
-        logger.warn('mcp', `Failed to start OpenCode server: ${e.message}`);
-      }
+    // Aguarda um pouco para servidor estar pronto
+    logger.info('mcp', 'Waiting for OpenCode server to be fully ready...');
+    await new Promise(resolve => setTimeout(resolve, 2000));
+    
+    // Verifica health final
+    const healthCheck = await fetch(`${opencodeUrl}/global/health`, {
+      method: 'GET',
+      signal: AbortSignal.timeout(5000)
+    });
+    
+    if (!healthCheck.ok) {
+      throw new Error(`OpenCode health check failed: ${healthCheck.status}`);
     }
     
     // Cria cliente SDK
-    sdkClient = createOpencodeClient({ baseUrl: sdkUrl });
+    sdkClient = createOpencodeClient({ baseUrl: opencodeUrl });
+    logger.success('mcp', `✅ SDK client created successfully`, { url: opencodeUrl });
     
-    if (sdkConnected) {
-      logger.success('mcp', `SDK connected`, { url: sdkUrl });
-    } else {
-      logger.warn('mcp', `SDK configured but not reachable`, { url: sdkUrl });
-      logger.info('mcp', `Tip: Start OpenCode manually or set OPENCODE_AUTOSTART=true`);
-    }
   } catch (error) {
-    logger.warn('mcp', `SDK not available: ${error.message}`);
+    logger.error('mcp', `Failed to initialize OpenCode: ${error.message}`);
   }
 
-
-  // 3. Obtém provider Ollama do sistema
+  // 3. Obtém Ollama como fallback
   const ollamaProvider = system.mcpRegistry.get("mcp_ollama");
   if (ollamaProvider && ollamaProvider.connected) {
     logger.success('mcp', `Ollama connected`, { url: ollamaProvider.baseUrl });
@@ -159,19 +246,17 @@ async function initSystem() {
     logger.warn('mcp', 'Ollama not connected');
   }
 
-
-  // 4. Cria o ChatEngine (cérebro do chat)
+  // 4. Cria o ChatEngine
   chatEngine = new ChatEngine({
     defaultModel: "llama3.2:latest",
     temperature: 0.7,
     maxTokens: 4000,
     maxHistory: 20,
-    smartIntentDetection: true,  // Usa LLM para casos ambíguos
+    smartIntentDetection: true,
     intentConfidenceThreshold: 0.7
   });
 
-
-  // 5. Inicializa o ChatEngine com todos os recursos
+  // 5. Inicializa o ChatEngine
   await chatEngine.initialize({
     ollama: ollamaProvider,
     sdk: sdkClient,
@@ -179,25 +264,21 @@ async function initSystem() {
     agentRegistry: system.agentRegistry
   });
 
-
-  logger.info('system', '╔════════════════════════════════════════════════════════╗');
+  logger.info('system', '╔══════════════════════════════════════════════════════╗');
   logger.success('system', '║              System Ready                              ║');
-  logger.info('system', '╚════════════════════════════════════════════════════════╝');
+  logger.info('system', '╚══════════════════════════════════════════════════════╝');
 }
 
-
 /**
- * GET /api/system - Info do sistema
+ * GET /api/system
  */
 app.get("/api/system", (req, res) => {
   if (!system || !chatEngine) {
     return res.status(503).json({ error: "Sistema não inicializado" });
   }
 
-
   const systemInfo = system.getSystemInfo();
   const chatInfo = chatEngine.getInfo();
-
 
   res.json({
     ...systemInfo,
@@ -205,9 +286,8 @@ app.get("/api/system", (req, res) => {
   });
 });
 
-
 /**
- * GET /api/health - Health check
+ * GET /api/health
  */
 app.get("/api/health", async (req, res) => {
   const health = {
@@ -217,7 +297,6 @@ app.get("/api/health", async (req, res) => {
     chatEngine: !!chatEngine,
     activeProvider: chatEngine?.activeProvider || null
   };
-
 
   if (chatEngine?.ollama) {
     try {
@@ -230,35 +309,27 @@ app.get("/api/health", async (req, res) => {
     health.ollama = "not_configured";
   }
 
-
   health.sdk = chatEngine?.sdk ? "configured" : "not_configured";
-
 
   res.json(health);
 });
 
-
 /**
- * POST /api/chat - Endpoint principal do chat
+ * POST /api/chat
  */
 app.post("/api/chat", async (req, res) => {
   if (!chatEngine) {
     return res.status(503).json({ error: "ChatEngine não inicializado" });
   }
 
-
   const { message } = req.body;
-
 
   if (!message || typeof message !== 'string' || !message.trim()) {
     return res.status(400).json({ error: "Mensagem é obrigatória" });
   }
 
-
   try {
-    // Processa a mensagem pelo ChatEngine
     const result = await chatEngine.chat(message.trim());
-
 
     res.json({
       success: result.success,
@@ -275,7 +346,6 @@ app.post("/api/chat", async (req, res) => {
       error: result.error
     });
 
-
   } catch (error) {
     logger.error('system', `Chat error: ${error.message}`, { stack: error.stack });
     
@@ -287,9 +357,8 @@ app.post("/api/chat", async (req, res) => {
   }
 });
 
-
 /**
- * POST /api/chat/clear - Limpa histórico de conversa
+ * POST /api/chat/clear
  */
 app.post("/api/chat/clear", (req, res) => {
   if (chatEngine) {
@@ -299,9 +368,8 @@ app.post("/api/chat/clear", (req, res) => {
   res.json({ success: true, message: "Histórico limpo" });
 });
 
-
 /**
- * GET /api/agents - Lista agentes disponíveis
+ * GET /api/agents
  */
 app.get("/api/agents", (req, res) => {
   if (!system) {
@@ -321,9 +389,8 @@ app.get("/api/agents", (req, res) => {
   });
 });
 
-
 /**
- * GET /api/tools - Lista ferramentas disponíveis
+ * GET /api/tools
  */
 app.get("/api/tools", (req, res) => {
   if (!system) {
@@ -344,9 +411,8 @@ app.get("/api/tools", (req, res) => {
   });
 });
 
-
 /**
- * GET /api/logs - Retorna logs do sistema
+ * GET /api/logs
  */
 app.get("/api/logs", (req, res) => {
   const { level, category, limit } = req.query;
@@ -354,7 +420,7 @@ app.get("/api/logs", (req, res) => {
   const logs = logger.getLogs({
     level: level || null,
     category: category || null,
-    limit: limit ? parseInt(limit) : 100
+    limit: limit ? parseInt(limit) :100
   });
 
   res.json({
@@ -365,9 +431,8 @@ app.get("/api/logs", (req, res) => {
   });
 });
 
-
 /**
- * GET /api/logs/stream - Server-Sent Events para logs em tempo real
+ * GET /api/logs/stream
  */
 app.get("/api/logs/stream", (req, res) => {
   logger.info('request', 'SSE connection started', null);
@@ -375,10 +440,9 @@ app.get("/api/logs/stream", (req, res) => {
   res.setHeader('Content-Type', 'text/event-stream');
   res.setHeader('Cache-Control', 'no-cache');
   res.setHeader('Connection', 'keep-alive');
-  res.setHeader('X-Accel-Buffering', 'no');  // Disable nginx buffering
+  res.setHeader('X-Accel-Buffering', 'no');
   res.flushHeaders();
 
-  // Envia evento inicial
   try {
     res.write(`data: ${JSON.stringify({ type: 'connected', timestamp: Date.now() })}\n\n`);
   } catch (e) {
@@ -386,7 +450,6 @@ app.get("/api/logs/stream", (req, res) => {
     return;
   }
 
-  // Intervalo para enviar novos logs
   const interval = setInterval(() => {
     try {
       const recentLogs = logger.getLogs({ limit: 1 });
@@ -399,7 +462,6 @@ app.get("/api/logs/stream", (req, res) => {
     }
   }, 500);
 
-  // Cleanup quando conexão fechar
   req.on('close', () => {
     logger.info('request', 'SSE connection closed', null);
     clearInterval(interval);
@@ -409,34 +471,30 @@ app.get("/api/logs/stream", (req, res) => {
   });
 });
 
-
 /**
- * GET /chat-v2 - Interface web do chat
+ * GET /chat-v2
  */
 app.get("/chat-v2", (req, res) => {
   res.sendFile(path.join(__dirname, "public", "chat-v2.html"));
 });
-
 
 /**
  * Inicializa o servidor
  */
 async function startServer() {
   try {
-    // Inicializa o sistema
     await initSystem();
 
-    // Inicia o servidor HTTP
     app.listen(PORT, () => {
-      logger.info('system', '╔════════════════════════════════════════════════════════╗');
+      logger.info('system', '╔══════════════════════════════════════════════════════╗');
       logger.success('system', `║  Server running on http://localhost:${PORT}           ║`);
-      logger.info('system', '╠════════════════════════════════════════════════════════╣');
+      logger.info('system', '╠══════════════════════════════════════════════════════╣');
       logger.info('system', `║  Chat UI:    http://localhost:${PORT}/chat-v2          ║`);
       logger.info('system', `║  Health:     http://localhost:${PORT}/api/health       ║`);
       logger.info('system', `║  Tools:      http://localhost:${PORT}/api/tools        ║`);
       logger.info('system', `║  Agents:     http://localhost:${PORT}/api/agents       ║`);
       logger.info('system', `║  Logs:       http://localhost:${PORT}/api/logs         ║`);
-      logger.info('system', '╚════════════════════════════════════════════════════════╝');
+      logger.info('system', '╚══════════════════════════════════════════════════════╝');
     });
 
   } catch (error) {
@@ -445,21 +503,18 @@ async function startServer() {
   }
 }
 
-
 /**
  * Graceful shutdown
  */
 async function shutdown() {
   logger.info('system', 'Shutting down gracefully...');
   
-  // Shutdown ChatEngine (fecha sessão SDK)
   if (chatEngine) {
     await chatEngine.shutdown();
   }
   
-  // Para servidor OpenCode se foi iniciado automaticamente
-  if (opencodeServer) {
-    await opencodeServer.stop();
+  if (opencodeProcess) {
+    opencodeProcess.kill();
     logger.info('system', 'OpenCode server stopped');
   }
   
@@ -477,7 +532,6 @@ process.on('uncaughtException', (error) => {
 process.on('unhandledRejection', (reason, promise) => {
   logger.error('system', `Unhandled rejection: ${reason}`, { promise });
 });
-
 
 // Inicia o servidor
 startServer();

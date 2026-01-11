@@ -1,386 +1,93 @@
-# ChatIAS
+# ChatIAS Pro 2.0
 
-Sistema de chat inteligente com múltiplos modelos de IA e fallback Ollama, usando 100% do OpenCode SDK com arquitetura modular. **O OpenCode SDK permanece sempre ativo (auto-connect + reconexão contínua)** para garantir que os modelos remotos estejam prontos para atender as requisições do painel e da console em tempo real.
+Sistema de chat com IA usando OpenCode SDK como provider principal e Ollama como fallback.
 
-
-## 🚀 Características
-
-- ✅ **15 modelos de IA** (12 remotos + 3 Ollama)
-- ✅ **Fallback em cascata** automático
-- ✅ **Arquitetura modular** para agentes, tools e MCP servers
-- ✅ **100% OpenCode SDK** - todas as funcionalidades
-- ✅ **Ollama como última opção** - privacidade e disponibilidade offline
-- ✅ **Sistema de agentes** ativável/desativável
-- ✅ **Tools customizadas** modulares
-- ✅ **Suporte a MCP servers** (Model Context Protocol)
-- ✅ **Skills** reutilizáveis
-
-## 📦 Instalação
+## 🚀 Como Iniciar
 
 ```bash
-# Clonar repositório
-git clone https://github.com/Billhebert/chatIAS.git
-cd chatIAS
-
-# Instalar dependências
-npm install
-
-# Configurar variáveis de ambiente
-cp .env.example .env
-# Edite .env e configure SDK_HOSTNAME/SDK_PORT/SDK_AUTO_CONNECT
+node server-v2.js
 ```
 
+## ✨ Funcionalidades
 
-## 🦙 Configurar Ollama (Opcional mas Recomendado)
+- ✅ **OpenCode SDK como provider principal**
+- ✅ **Gerenciamento inteligente do servidor OpenCode**:
+  - Usa servidor existente (porta 4096) se estiver rodando e funcionando
+  - Cria novo servidor (porta 4097) se necessário
+  - Testa conexão antes de usar
+- ✅ **Ollama como fallback** (se disponível)
+- ✅ **Multi-model fallback automático** (10 modelos gratuitos)
+- ✅ **Configuração correta**: maxTokens: 2000
+- ✅ **Sem timeout no SDK**: aguarda tempo necessário para resposta
+- ✅ **Interface web**: http://localhost:4174/chat-v2
 
-O Ollama funciona como fallback quando todos os modelos remotos falharem:
+## 📊 Arquitetura
+
+```
+┌─────────────────────────────────────────────┐
+│         ChatIAS Server (port 4174)          │
+│  ┌───────────────────────────────────────┐  │
+│  │         ChatEngine                    │  │
+│  │  - Intent Detection                   │  │
+│  │  - Provider Selection                 │  │
+│  │  - Auto Model Switching               │  │
+│  └───────────────────────────────────────┘  │
+│              │                │              │
+│      ┌───────┴────┐    ┌─────┴──────┐      │
+│      │    SDK     │    │   Ollama   │      │
+│      │ (Primary)  │    │ (Fallback) │      │
+│      └───────┬────┘    └────────────┘      │
+└──────────────│──────────────────────────────┘
+               │
+    ┌──────────▼──────────┐
+    │  OpenCode Server    │
+    │   (port 4096/4097)  │
+    │                     │
+    │  maxTokens: 2000    │
+    │  10 free models     │
+    └─────────────────────┘
+```
+
+## 🎯 Comportamento do Servidor OpenCode
+
+### Se OpenCode já estiver aberto (porta 4096):
+1. ✅ Verifica se está rodando
+2. ✅ Testa criando uma sessão
+3. ✅ Se funcionar → USA o existente
+4. ✅ Se falhar → Cria novo na porta 4097
+
+### Se OpenCode não estiver aberto:
+1. ✅ Cria novo servidor na porta 4097
+2. ✅ Configura com maxTokens: 2000
+3. ✅ Usa esse servidor
+
+## 🔧 Endpoints
+
+| Endpoint | Descrição |
+|----------|-----------|
+| `http://localhost:4174/chat-v2` | Interface web |
+| `http://localhost:4174/api/chat` | POST - Enviar mensagem |
+| `http://localhost:4174/api/health` | GET - Status |
+| `http://localhost:4174/api/system` | GET - Info do sistema |
+| `http://localhost:4174/api/tools` | GET - Ferramentas |
+| `http://localhost:4174/api/agents` | GET - Agentes |
+| `http://localhost:4174/api/logs` | GET - Logs |
+
+## 🎨 Teste Rápido
 
 ```bash
-# 1. Instalar Ollama
-curl -fsSL https://ollama.ai/install.sh | sh
-
-# 2. Baixar modelos
-ollama pull llama3.2
-ollama pull qwen2.5-coder
-ollama pull deepseek-coder-v2
-
-# 3. Verificar instalação
-ollama list
+curl -X POST http://localhost:4174/api/chat \
+  -H "Content-Type: application/json" \
+  -d '{"message":"Olá! Quanto é 2+2?"}'
 ```
 
-## 🎯 Uso
+## 📝 Notas Importantes
 
-### Produção
+1. **Sempre funciona** - tanto com OpenCode aberto quanto sem
+2. **Sem timeout** - SDK aguarda tempo necessário para resposta
+3. **maxTokens: 2000** - configurado corretamente para modelos free
+4. **Multi-model** - troca automaticamente se modelo falhar
 
-**Arquivo principal**: `chat.js`
+## 🛑 Parar
 
-```bash
-# Executar em produção
-node chat.js
-```
-
-**Requisitos**:
-- ✅ OpenCode CLI instalado e servidor SDK ativo (auto-connect habilitado)
-- ✅ Ollama instalado (opcional, apenas para fallback)
-
-
-**Funcionalidades**:
-- ✅ 12 modelos remotos (OpenCode, OpenRouter, Zenmux)
-- ✅ 3 modelos Ollama como fallback
-- ✅ Sistema modular de agentes (5 agentes)
-- ✅ Tools customizadas (3 tools)
-- ✅ MCP servers
-- ✅ Skills documentadas
-
-### Desenvolvimento/Testes
-
-Para testar sem OpenCode SDK:
-
-```bash
-# Demo do sistema modular (sempre funciona)
-node examples/demo-modular-system.js
-
-# Versão standalone (para testes sem SDK)
-node chat-standalone.js
-```
-
-> ⚠️ A experiência completa do painel requer o OpenCode SDK sempre ativo. Use os scripts acima apenas para validar componentes isolados.
-
-
-### Integração
-
-Para integrar em sua aplicação:
-
-```bash
-# Veja exemplo completo
-node production-example.js
-```
-
-Ou importe diretamente:
-
-```javascript
-import { ProductionChatClient } from "./production-example.js";
-
-const client = new ProductionChatClient();
-await client.initialize();
-await client.createSession("Minha Sessão");
-const response = await client.sendMessage("Olá!");
-```
-
-## 🏗️ Arquitetura
-
-### Estrutura de Diretórios
-
-```
-chatIAS/
-├── .opencode/               # Configurações OpenCode
-│   ├── config.json         # Config principal
-│   ├── agent/              # Agentes modulares
-│   │   ├── chat.md
-│   │   ├── code-analyst.md
-│   │   ├── code-writer.md
-│   │   ├── researcher.md
-│   │   └── tester.md
-│   └── skill/              # Skills reutilizáveis
-│       ├── ollama-integration/
-│       ├── multi-model-fallback/
-│       └── sdk-usage/
-├── lib/                    # Bibliotecas modulares
-│   ├── agents/            # Sistema de agentes
-│   ├── ollama/            # Cliente Ollama
-│   ├── tools/             # Tools customizadas
-│   └── mcp/               # Gerenciador MCP
-├── sdk/                   # OpenCode SDK
-├── chat.js               # Aplicação principal
-└── package.json
-```
-
-### Sistema de Fallback
-
-```
-┌─────────────────────────────────────────┐
-│ 1. Modelo Especificado                  │
-│    ↓ (falhou?)                          │
-├─────────────────────────────────────────┤
-│ 2. Modelos OpenCode (2)                 │
-│    - minimax-m2.1-free                  │
-│    - glm-4.7-free                       │
-│    ↓ (todos falharam?)                  │
-├─────────────────────────────────────────┤
-│ 3. Modelos OpenRouter Free (7)          │
-│    - kat-coder-pro                      │
-│    - gemini-2.0-flash-exp               │
-│    - qwen3-coder                        │
-│    - devstral-2512                      │
-│    - llama-3.3-70b-instruct             │
-│    - devstral-small-2507                │
-│    - glm-4.5-air                        │
-│    ↓ (todos falharam?)                  │
-├─────────────────────────────────────────┤
-│ 4. Modelos Zenmux (3)                   │
-│    - mimo-v2-flash-free                 │
-│    - glm-4.6v-flash-free                │
-│    - kat-coder-pro-v1-free              │
-│    ↓ (todos falharam?)                  │
-├─────────────────────────────────────────┤
-│ 5. 🦙 Ollama Local (3)                  │
-│    - llama3.2                           │
-│    - qwen2.5-coder                      │
-│    - deepseek-coder-v2                  │
-│    ↓ (todos falharam?)                  │
-├─────────────────────────────────────────┤
-│ ❌ Erro Final                           │
-└─────────────────────────────────────────┘
-```
-
-## 🤖 Agentes
-
-### Agentes Primários
-
-- **chat** - Agente principal para conversas gerais
-- **code-analyst** - Analisa código sem modificar (somente leitura)
-- **code-writer** - Escreve e edita código
-
-### Subagentes
-
-- **researcher** - Pesquisa informações na web e código
-- **tester** - Executa e analisa testes
-
-### Gerenciar Agentes
-
-```javascript
-import { globalAgentManager } from "./lib/agents/index.js";
-
-// Listar agentes
-globalAgentManager.list({ enabled: true });
-
-// Habilitar/Desabilitar
-globalAgentManager.enable("code-analyst");
-globalAgentManager.disable("code-analyst");
-
-// Configurar ferramentas
-globalAgentManager.setTools("chat", {
-  bash: "ask",
-  edit: true
-});
-```
-
-## 🔧 Tools Customizadas
-
-### Tools Ollama
-
-- `ollama_generate` - Gera texto com Ollama
-- `ollama_chat` - Chat usando Ollama
-- `ollama_status` - Verifica status do Ollama
-
-### Gerenciar Tools
-
-```javascript
-import { globalToolRegistry } from "./lib/tools/index.js";
-
-// Executar tool
-await globalToolRegistry.execute("ollama_status");
-
-// Habilitar/Desabilitar
-globalToolRegistry.enable("ollama_generate");
-globalToolRegistry.disable("ollama_generate");
-
-// Listar tools
-globalToolRegistry.list(true); // apenas habilitadas
-```
-
-## 🔌 MCP Servers
-
-Servidores MCP estendem funcionalidades através do Model Context Protocol.
-
-### Gerenciar MCP
-
-```javascript
-import { globalMCPManager } from "./lib/mcp/index.js";
-
-// Registrar servidor local
-globalMCPManager.registerLocal("filesystem", {
-  command: ["npx", "-y", "@modelcontextprotocol/server-filesystem"],
-  args: ["/path/to/dir"],
-  enabled: true
-});
-
-// Iniciar servidor
-await globalMCPManager.startLocal("filesystem");
-
-// Parar servidor
-globalMCPManager.stopLocal("filesystem");
-
-// Habilitar/Desabilitar
-globalMCPManager.enable("filesystem");
-globalMCPManager.disable("filesystem");
-```
-
-## 📚 Skills
-
-Skills são instruções reutilizáveis em formato Markdown.
-
-### Skills Disponíveis
-
-- **ollama-integration** - Integração com Ollama
-- **multi-model-fallback** - Sistema de fallback
-- **sdk-usage** - Guia completo do SDK
-
-### Criar Nova Skill
-
-```bash
-mkdir -p .opencode/skill/my-skill
-```
-
-Crie `.opencode/skill/my-skill/SKILL.md`:
-
-```markdown
----
-name: my-skill
-description: Descrição da skill
-license: MIT
----
-
-# Minha Skill
-
-Conteúdo da skill aqui...
-```
-
-## ⚙️ Configuração Avançada
-
-### `.opencode/config.json`
-
-```json
-{
-  "model": {
-    "provider": "opencode",
-    "model": "minimax-m2.1-free"
-  },
-  "agent": {
-    "custom-agent": {
-      "description": "Meu agente customizado",
-      "mode": "primary",
-      "temperature": 0.5,
-      "tools": { "*": true }
-    }
-  },
-  "tool": {
-    "ollama": {
-      "enabled": true,
-      "priority": "fallback"
-    }
-  },
-  "mcp": {
-    "servers": {
-      "my-server": {
-        "type": "local",
-        "command": ["npx", "my-mcp-server"],
-        "enabled": true
-      }
-    }
-  }
-}
-```
-
-## 🔐 Variáveis de Ambiente
-
-Crie um arquivo `.env`:
-
-```env
-# OpenCode SDK (sempre ativo)
-SDK_HOSTNAME=127.0.0.1
-SDK_PORT=4096
-SDK_AUTO_CONNECT=true
-SDK_STARTUP_TIMEOUT=20000
-SDK_RETRY_DELAY=5000
-
-# Ollama (opcional)
-OLLAMA_URL=http://localhost:11434
-
-# API Keys (se necessário)
-OPENROUTER_API_KEY=sk-or-v1-...
-```
-
-
-## 🧪 Testes
-
-```bash
-# Testar sistema completo
-node chat.js
-
-# Verificar Ollama
-curl http://localhost:11434/api/tags
-```
-
-## 📖 Documentação
-
-- [OpenCode SDK](https://opencode.ai/docs/sdk/)
-- [Agents](https://opencode.ai/docs/agents/)
-- [Tools](https://opencode.ai/docs/tools/)
-- [MCP Servers](https://opencode.ai/docs/mcp-servers/)
-- [Skills](https://opencode.ai/docs/skills/)
-- [Ollama](https://ollama.ai/)
-- [TROUBLESHOOTING.md](TROUBLESHOOTING.md) - Solução de problemas e uso sem SDK
-
-
-## 🤝 Contribuindo
-
-1. Fork o projeto
-2. Crie uma branch (`git checkout -b feature/nova-funcionalidade`)
-3. Commit suas mudanças (`git commit -m 'Adiciona nova funcionalidade'`)
-4. Push para a branch (`git push origin feature/nova-funcionalidade`)
-5. Abra um Pull Request
-
-## 📄 Licença
-
-ISC
-
-## 👤 Autor
-
-ChatIAS Project
-
-## 🙏 Agradecimentos
-
-- OpenCode.ai pela excelente SDK
-- Ollama pelo framework de modelos locais
-- Comunidade open source
+Pressione `Ctrl+C` no terminal para parar gracefulmente.

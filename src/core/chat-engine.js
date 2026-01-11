@@ -302,11 +302,8 @@ Respond with ONLY the intent type, nothing else.`;
       logger.info('mcp', 'Using OpenCode SDK (primary provider)...', null, requestId);
       logger.debug('mcp', `Session: ${this.sdkSessionId}, Model: ${this.currentModel?.name || 'unknown'}`, null, requestId);
       try {
-        // Timeout de 15 segundos para SDK
-        const timeoutPromise = new Promise((_, reject) => 
-          setTimeout(() => reject(new Error('SDK timeout after 15s')), 15000)
-        );
-
+        logger.info('mcp', `Sending prompt to SDK...`, { messageLength: message.length }, requestId);
+        
         const promptPromise = this.sdk.session.prompt({
           path: { id: this.sdkSessionId },
           body: {
@@ -316,8 +313,13 @@ Respond with ONLY the intent type, nothing else.`;
           }
         });
 
-        const response = await Promise.race([promptPromise, timeoutPromise]);
+        logger.info('mcp', `Waiting for SDK response (NO TIMEOUT - waits indefinitely)...`, null, requestId);
+        
+        // SEM TIMEOUT - aguarda indefinidamente
+        const response = await promptPromise;
 
+        logger.info('mcp', `✅ SDK response received!`, null, requestId);
+        
         // Log detalhado da resposta SDK para debug
         logger.info('mcp', `SDK raw response: ${JSON.stringify(response).substring(0, 500)}`, null, requestId);
         logger.debug('mcp', `SDK response type: ${typeof response}, hasData: ${!!response?.data}`, null, requestId);
@@ -371,13 +373,14 @@ Respond with ONLY the intent type, nothing else.`;
         }
 
         if (text && text.length > 0) {
-          logger.success('mcp', `SDK responded successfully (${text.length} chars)`, null, requestId);
+          logger.success('mcp', `✅ SDK responded successfully (${text.length} chars)`, null, requestId);
+          logger.debug('mcp', `Response text preview: ${text.substring(0, 100)}...`, null, requestId);
           return {
             text: text,
             provider: 'sdk'
           };
         } else {
-          logger.warn('mcp', 'SDK returned empty/invalid response, falling back...', null, requestId);
+          logger.warn('mcp', `⚠️ SDK returned empty/invalid response (text="${text}", hasParts=${!!response.data?.parts})`, null, requestId);
         }
       } catch (error) {
         logger.warn('mcp', `SDK failed: ${error.message}, falling back to Ollama...`, null, requestId);
