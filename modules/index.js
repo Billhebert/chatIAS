@@ -345,12 +345,35 @@ export function initializeAgentSystem() {
       console.warn(`Agent class ${agentConfig.class} not found`);
       return;
     }
+
+    // Passa as permissões do config para o agente
     const agentInstance = new AgentClass();
+    // Configura permissões após a criação
+    if (agentConfig.allowedTools) {
+      agentInstance.allowedTools = agentConfig.allowedTools;
+    }
+    if (agentConfig.allowedSubagents) {
+      agentInstance.allowedSubagents = agentConfig.allowedSubagents;
+    }
 
     (agentConfig.subagents || []).forEach((subagentName) => {
       const SubagentClass = agentClasses[subagentName];
       if (SubagentClass) {
-        agentInstance.registerSubagent(new SubagentClass());
+        const subagentInstance = new SubagentClass();
+
+        // Configura permissões do subagente se definidas no config
+        const subagentKey = subagentName.replace("Agent", "");
+        if (config.subagents && config.subagents[subagentKey]) {
+          const subagentConfig = config.subagents[subagentKey];
+          if (subagentConfig.allowedTools) {
+            subagentInstance.allowedTools = subagentConfig.allowedTools;
+          }
+          if (subagentConfig.allowedSubagents) {
+            subagentInstance.allowedSubagents = subagentConfig.allowedSubagents;
+          }
+        }
+
+        agentInstance.registerSubagent(subagentInstance);
       }
     });
 

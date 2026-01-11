@@ -21,7 +21,8 @@
         "CodeFormatterAgent",
         "DependencyAnalyzerAgent"
       ],
-      "tools": ["file_reader", "code_executor"]
+      "allowedTools": ["file_reader", "code_executor"],
+      "allowedSubagents": ["SyntaxChecker", "CodeFormatter", "DependencyAnalyzer"]
     },
     {
       "key": "data",
@@ -32,7 +33,8 @@
         "DataTransformerAgent",
         "DataAggregatorAgent"
       ],
-      "tools": ["json_parser"]
+      "allowedTools": ["json_parser"],
+      "allowedSubagents": ["DataValidator", "DataTransformer", "DataAggregator"]
     },
     {
       "key": "task",
@@ -43,9 +45,48 @@
         "TaskExecutorAgent",
         "TaskReporterAgent"
       ],
-      "tools": ["file_reader"]
+      "allowedTools": ["file_reader"],
+      "allowedSubagents": ["TaskScheduler", "TaskExecutor", "TaskReporter"]
     }
   ],
+  "subagents": {
+    "SyntaxChecker": {
+      "allowedTools": [],
+      "allowedSubagents": []
+    },
+    "CodeFormatter": {
+      "allowedTools": [],
+      "allowedSubagents": []
+    },
+    "DependencyAnalyzer": {
+      "allowedTools": [],
+      "allowedSubagents": []
+    },
+    "DataValidator": {
+      "allowedTools": ["json_parser"],
+      "allowedSubagents": []
+    },
+    "DataTransformer": {
+      "allowedTools": [],
+      "allowedSubagents": []
+    },
+    "DataAggregator": {
+      "allowedTools": [],
+      "allowedSubagents": []
+    },
+    "TaskScheduler": {
+      "allowedTools": [],
+      "allowedSubagents": []
+    },
+    "TaskExecutor": {
+      "allowedTools": ["file_reader"],
+      "allowedSubagents": []
+    },
+    "TaskReporter": {
+      "allowedTools": [],
+      "allowedSubagents": []
+    }
+  },
   "sdk": {
     "remoteModels": [
       { "providerID": "opencode", "modelID": "minimax-m2.1-free" },
