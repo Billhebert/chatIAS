@@ -91,6 +91,33 @@ app.get("/api/sdk", async (req, res) => {
   res.json(response);
 });
 
+/**
+ * Detecta se o prompt pode ser resolvido diretamente por uma tool
+ * Retorna { useTool: true, toolName, params } se detectado, ou { useTool: false }
+ */
+function detectDirectToolUse(prompt) {
+  const lower = prompt.toLowerCase();
+
+  // Detecta operações matemáticas de soma
+  const somaMatch =
+    prompt.match(/(?:somar|soma|quanto (?:é|e)|calcul(?:e|ar)|adicionar)\s*(\d+)\s*(?:\+|e|mais)\s*(\d+)/i) ||
+    prompt.match(/(\d+)\s*\+\s*(\d+)/);
+
+  if (somaMatch) {
+    const a = parseInt(somaMatch[1]);
+    const b = parseInt(somaMatch[2]);
+    return {
+      useTool: true,
+      toolName: "soma",
+      params: { a, b },
+    };
+  }
+
+  // Pode adicionar mais detecções aqui (subtração, multiplicação, etc.)
+
+  return { useTool: false };
+}
+
 app.post("/api/run", async (req, res) => {
   const { prompt, agent, fallback = true } = req.body;
   if (!prompt) {
@@ -98,6 +125,62 @@ app.post("/api/run", async (req, res) => {
   }
 
   try {
+    // Primeiro, verifica se podemos usar uma tool diretamente
+    const toolDetection = detectDirectToolUse(prompt);
+
+    if (toolDetection.useTool) {
+      // Executa a tool diretamente sem passar por agentes
+      const toolResult = await globalToolRegistry.execute(
+        toolDetection.toolName,
+        toolDetection.params
+      );
+
+      // Formata resposta amigável
+      let summary;
+      if (toolDetection.toolName === "soma" && toolResult.success) {
+        summary = `A soma de ${toolResult.a} + ${toolResult.b} é ${toolResult.result}.`;
+      } else if (toolResult.success) {
+        summary = JSON.stringify(toolResult, null, 2);
+      } else {
+        summary = `Erro ao executar a ferramenta: ${toolResult.error}`;
+      }
+
+      const log = [
+        {
+          timestamp: new Date().toISOString(),
+          message: `Chamou ferramenta: ${toolDetection.toolName}`,
+        },
+      ];
+
+      if (agentSystem?.sdkState) {
+        agentSystem.sdkState.history = [
+          {
+            id: Date.now().toString(),
+            prompt,
+            agent: `Tool: ${toolDetection.toolName}`,
+            source: "tool",
+            model: null,
+            attempts: [],
+            summary,
+            timestamp: new Date().toISOString(),
+          },
+          ...(agentSystem.sdkState.history || []),
+        ].slice(0, 20);
+      }
+
+      return res.json({
+        success: true,
+        agent: `Tool: ${toolDetection.toolName}`,
+        source: "tool",
+        model: null,
+        summary,
+        attempts: [],
+        log,
+        toolResult,
+      });
+    }
+
+    // Se não detectou tool direta, usa o fluxo normal de agentes
     let agentKey = agent;
     if (!agentKey || agentKey === "auto") {
       const lower = prompt.toLowerCase();

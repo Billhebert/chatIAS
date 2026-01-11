@@ -24,13 +24,21 @@ function createMessage({ role, text, source, agent, attempts = [], log = [] }) {
   const article = document.createElement("article");
   article.className = `message ${role}`;
 
+  // Normalizar o source para ter um nome amigável
+  const sourceDisplay = {
+    local: "LOCAL",
+    remote: "REMOTE",
+    ollama: "OLLAMA",
+    tool: "TOOL",
+  }[source] || source?.toUpperCase() || "LOCAL";
+
   const header = document.createElement("div");
   header.className = "message-header";
   header.innerHTML = `
     <span>${role === "user" ? "Você" : agent || "Agente"}</span>
     <span>
       <span class="message-dot ${source || "local"}"></span>
-      ${source || "local"}
+      ${sourceDisplay}
     </span>
   `;
 
@@ -41,6 +49,7 @@ function createMessage({ role, text, source, agent, attempts = [], log = [] }) {
   article.appendChild(header);
   article.appendChild(body);
 
+  // Exibir log de execução se houver
   if (log.length) {
     const logWrapper = document.createElement("div");
     logWrapper.className = "message-log";
@@ -54,6 +63,7 @@ function createMessage({ role, text, source, agent, attempts = [], log = [] }) {
     article.appendChild(logWrapper);
   }
 
+  // Exibir tentativas de modelos se houver
   if (attempts.length) {
     const legend = document.createElement("div");
     legend.className = "message-legend";
