@@ -392,14 +392,8 @@ export class BaseTool extends EventEmitter {
 
     this.log(`Executing action: ${actionId}`, 'debug');
 
-    // Validate action params
-    const actionParams = {};
-    for (const paramName of action.params || []) {
-      if (params[paramName] === undefined) {
-        throw new Error(`Missing required parameter for action ${actionId}: ${paramName}`);
-      }
-      actionParams[paramName] = params[paramName];
-    }
+    // Pass all params to action method (let the method handle defaults)
+    // Don't validate required params here, let the action method validate
 
     // Execute action method
     const methodName = `action_${actionId}`;
@@ -407,7 +401,7 @@ export class BaseTool extends EventEmitter {
       throw new Error(`Action method not implemented: ${methodName}`);
     }
 
-    return await this[methodName](actionParams);
+    return await this[methodName](params);
   }
 
   /**

@@ -326,7 +326,7 @@ export class BaseAgent extends EventEmitter {
   /**
    * Usa uma tool
    */
-  async useTool(toolName, params) {
+  async useTool(toolName, params, actionId = null) {
     if (!this.permissions.useTools) {
       throw new Error(`Agent ${this.id} does not have permission to use tools`);
     }
@@ -336,11 +336,12 @@ export class BaseAgent extends EventEmitter {
       throw new Error(`Tool not available: ${toolName}`);
     }
 
-    this.log(`Using tool: ${toolName}`, 'debug');
+    this.log(`Using tool: ${toolName}${actionId ? '.' + actionId : ''}`, 'debug');
 
     const startTime = Date.now();
     try {
-      const result = await this.toolRegistry.execute(toolName, params);
+      const tool = toolEntry.tool;
+      const result = await tool.run(params, actionId);
       const duration = Date.now() - startTime;
 
       this.log(`Tool ${toolName} completed in ${duration}ms`, 'debug');

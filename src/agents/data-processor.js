@@ -68,7 +68,7 @@ export class DataProcessorAgent extends BaseAgent {
 
     // Usa tool se disponível
     if (this.availableTools.find(t => t.id === 'json_parser')) {
-      return await this.useTool('json_parser', { data, schema, action: 'validate' });
+      return await this.useTool('json_parser', { data, schema }, 'validate');
     }
 
     // Validação básica

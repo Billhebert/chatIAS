@@ -49,8 +49,9 @@ export class OllamaMCPProvider extends BaseMCP {
 
       return true;
     } catch (error) {
-      this.log(`Failed to connect to Ollama: ${error.message}`, 'error');
-      throw error;
+      this.log(`Failed to connect to Ollama: ${error.message}`, 'warn');
+      this.log('Ollama is not available. Will use fallback if configured.', 'info');
+      return false; // Don't throw, just return false
     }
   }
 
@@ -246,6 +247,15 @@ export class OllamaMCPProvider extends BaseMCP {
    * Lista modelos disponíveis
    */
   async listModels() {
+    if (!this.connected) {
+      return {
+        success: false,
+        models: [],
+        count: 0,
+        message: 'Ollama is not connected'
+      };
+    }
+
     try {
       const response = await fetch(`${this.baseUrl}/api/tags`, {
         method: 'GET',
@@ -265,8 +275,13 @@ export class OllamaMCPProvider extends BaseMCP {
         message: 'Models listed successfully'
       };
     } catch (error) {
-      this.log(`List models failed: ${error.message}`, 'error');
-      throw error;
+      this.log(`List models failed: ${error.message}`, 'warn');
+      return {
+        success: false,
+        models: [],
+        count: 0,
+        message: error.message
+      };
     }
   }
 

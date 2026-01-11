@@ -212,7 +212,7 @@
             "json": "${step1.result}"
           },
           "onSuccess": "continue",
-          "onError": "continue",
+          "onError": "skip",
           "description": "✓ Parse resposta do LLM"
         }
       ],
@@ -397,7 +397,9 @@
 
       "permissions": {
         "executeCode": false,
-        "accessKB": true
+        "accessKB": true,
+        "useTools": true,
+        "callSubagents": true
       }
     }
   },
