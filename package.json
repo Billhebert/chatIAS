@@ -1,9 +1,10 @@
 {
-  "name": "chat",
-  "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
+  "name": "chatias-pro",
+  "version": "2.0.0",
+  "description": "ChatIAS Pro - Sistema modular de agentes IA com governança e padronização",
+  "main": "example.js",
   "scripts": {
+    "start": "node example.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "repository": {
@@ -24,6 +25,8 @@
     "@tsconfig/node22": "22.0.2",
     "@types/node": "22.13.9",
     "@typescript/native-preview": "7.0.0-dev.20251207.1",
+    "ajv": "^8.12.0",
+    "ajv-formats": "^2.1.1",
     "cors": "^2.8.5",
     "dotenv": "^17.2.3",
     "express": "^5.2.1",

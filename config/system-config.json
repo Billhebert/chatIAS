@@ -1,0 +1,738 @@
+{
+  "system": {
+    "name": "ChatIAS Pro",
+    "version": "2.0.0",
+    "environment": "production",
+    "strict": true,
+    "hotReload": true
+  },
+
+  "routing": {
+    "intelligent": true,
+    "strategies": [
+      {
+        "id": "by_keywords",
+        "type": "keyword_matching",
+        "enabled": true,
+        "priority": 1
+      },
+      {
+        "id": "by_capabilities",
+        "type": "capability_matching",
+        "enabled": true,
+        "priority": 2
+      },
+      {
+        "id": "by_performance",
+        "type": "performance_based",
+        "enabled": true,
+        "priority": 3
+      }
+    ]
+  },
+
+  "middleware": {
+    "chain": [
+      {
+        "id": "validation",
+        "type": "input_validation",
+        "enabled": true,
+        "order": 1
+      },
+      {
+        "id": "logging",
+        "type": "logging",
+        "enabled": true,
+        "order": 2,
+        "config": {
+          "logLevel": "info",
+          "logFile": "./logs/execution.log"
+        }
+      },
+      {
+        "id": "caching",
+        "type": "caching",
+        "enabled": true,
+        "order": 3,
+        "config": {
+          "ttl": 3600,
+          "backend": "memory"
+        }
+      },
+      {
+        "id": "rateLimit",
+        "type": "rate_limiting",
+        "enabled": true,
+        "order": 4,
+        "config": {
+          "requestsPerMinute": 60,
+          "burstSize": 10
+        }
+      },
+      {
+        "id": "metrics",
+        "type": "metrics_collection",
+        "enabled": true,
+        "order": 5,
+        "config": {
+          "trackExecutionTime": true,
+          "trackErrorRate": true
+        }
+      }
+    ]
+  },
+
+  "events": {
+    "enabled": true,
+    "eventBus": "local",
+    "config": {
+      "retryFailed": true,
+      "maxListeners": 100
+    }
+  },
+
+  "toolSequences": {
+    "analyze_code": {
+      "id": "analyze_code",
+      "name": "Análise Completa de Código",
+      "description": "Analisa código em 3 fases: validação de sintaxe, verificação de estilo, extração de dependências",
+      "tags": ["code", "analysis", "complete"],
+      "triggeredBy": ["code_analyzer"],
+
+      "steps": [
+        {
+          "order": 1,
+          "tool": "code_executor",
+          "action": "validate_syntax",
+          "params": {
+            "code": "${input.code}",
+            "timeout": 5000
+          },
+          "onSuccess": "continue",
+          "onError": "stop",
+          "description": "✓ Valida sintaxe do código"
+        },
+        {
+          "order": 2,
+          "tool": "code_executor",
+          "action": "check_style",
+          "params": {
+            "code": "${input.code}"
+          },
+          "onSuccess": "continue",
+          "onError": "log_warning",
+          "description": "✓ Verifica estilo e formatação"
+        },
+        {
+          "order": 3,
+          "tool": "file_reader",
+          "action": "extract_dependencies",
+          "params": {
+            "code": "${input.code}"
+          },
+          "onSuccess": "continue",
+          "onError": "skip",
+          "description": "✓ Extrai dependências e imports"
+        }
+      ],
+
+      "errorHandling": {
+        "strategy": "fail_fast",
+        "retry": {
+          "enabled": true,
+          "maxRetries": 2,
+          "backoffMs": 500
+        }
+      }
+    },
+
+    "process_data": {
+      "id": "process_data",
+      "name": "Processamento Completo de Dados",
+      "description": "Valida, transforma e agrega dados em sequência automática",
+      "tags": ["data", "processing", "complete"],
+      "triggeredBy": ["data_processor"],
+
+      "steps": [
+        {
+          "order": 1,
+          "tool": "json_parser",
+          "action": "parse",
+          "params": {
+            "json": "${input.data}",
+            "strict": true
+          },
+          "onSuccess": "continue",
+          "onError": "stop",
+          "description": "✓ Parse JSON string para objeto"
+        },
+        {
+          "order": 2,
+          "tool": "json_parser",
+          "action": "validate",
+          "params": {
+            "data": "${step1.result}",
+            "schema": "${input.schema}"
+          },
+          "onSuccess": "continue",
+          "onError": "log_warning",
+          "description": "✓ Valida contra schema"
+        }
+      ]
+    },
+
+    "semantic_analysis": {
+      "id": "semantic_analysis",
+      "name": "Análise Semântica com IA",
+      "description": "Usa MCP para análise semântica avançada com fallback automático",
+      "tags": ["semantic", "ai", "advanced"],
+      "triggeredBy": ["code_analyzer"],
+
+      "steps": [
+        {
+          "order": 1,
+          "mcp": "mcp_ollama",
+          "action": "analyze",
+          "params": {
+            "prompt": "Analyze this code for patterns, issues and improvements: ${input.code}",
+            "model": "mistral:latest",
+            "temperature": 0.3,
+            "maxTokens": 2000
+          },
+          "onSuccess": "continue",
+          "onError": "fallback",
+          "fallbackMCP": "mcp_openai",
+          "description": "🤖 Análise semântica com LLM"
+        },
+        {
+          "order": 2,
+          "tool": "json_parser",
+          "action": "parse_response",
+          "params": {
+            "json": "${step1.result}"
+          },
+          "onSuccess": "continue",
+          "onError": "continue",
+          "description": "✓ Parse resposta do LLM"
+        }
+      ],
+
+      "circuitBreaker": {
+        "enabled": true,
+        "failureThreshold": 5,
+        "successThreshold": 2,
+        "timeout": 60000,
+        "description": "Protege contra falhas repetidas de MCP"
+      }
+    }
+  },
+
+  "agents": {
+    "code_analyzer": {
+      "id": "code_analyzer",
+      "class": "CodeAnalyzerAgent",
+      "file": "code-analyzer.js",
+      "enabled": true,
+      "version": "1.0.0",
+
+      "description": "Analisa sintaxe, estilo e dependências de código-fonte",
+      "tags": ["code", "analysis", "static"],
+
+      "routing": {
+        "keywords": [
+          "code", "analyze", "syntax", "dependencies", "import", "format", "style", "lint"
+        ],
+        "priority": 1,
+        "minConfidence": 0.7
+      },
+
+      "input": {
+        "code": { "type": "string", "required": true, "minLength": 1 },
+        "language": { "type": "string", "default": "javascript" },
+        "depth": { "type": "string", "enum": ["basic", "standard", "deep"], "default": "standard" }
+      },
+
+      "capabilities": {
+        "syntaxAnalysis": true,
+        "styleChecking": true,
+        "dependencyTracking": true,
+        "patternDetection": true
+      },
+
+      "subagents": [
+        { "id": "syntax_checker", "class": "SyntaxCheckerAgent" },
+        { "id": "code_formatter", "class": "CodeFormatterAgent" },
+        { "id": "dependency_analyzer", "class": "DependencyAnalyzerAgent" }
+      ],
+
+      "toolSequences": [
+        {
+          "trigger": "default",
+          "sequence": "analyze_code",
+          "description": "Análise padrão: sintaxe → estilo → dependências"
+        },
+        {
+          "trigger": "semantic",
+          "sequence": "semantic_analysis",
+          "description": "Análise avançada com IA"
+        }
+      ],
+
+      "tools": [
+        {
+          "id": "code_executor",
+          "required": true,
+          "phase": "validation",
+          "priority": 1
+        },
+        {
+          "id": "file_reader",
+          "required": false,
+          "phase": "analysis",
+          "priority": 2
+        }
+      ],
+
+      "knowledgeBase": [
+        { "id": "js_syntax", "priority": "high" },
+        { "id": "patterns", "priority": "medium" }
+      ],
+
+      "mcp": {
+        "optional": ["mcp_ollama", "mcp_openai"],
+        "preference": "local",
+        "fallback": true
+      },
+
+      "sdk": {
+        "providers": {
+          "local": {
+            "enabled": true,
+            "models": ["mistral:latest", "llama2:latest"],
+            "defaultModel": "mistral:latest",
+            "temperature": 0.3,
+            "maxTokens": 4000
+          },
+          "openai": {
+            "enabled": false,
+            "fallback": true
+          }
+        }
+      },
+
+      "permissions": {
+        "readFile": true,
+        "writeFile": false,
+        "executeCode": true,
+        "accessKB": true
+      },
+
+      "rateLimit": {
+        "enabled": true,
+        "requestsPerMinute": 60
+      }
+    },
+
+    "data_processor": {
+      "id": "data_processor",
+      "class": "DataProcessorAgent",
+      "file": "data-processor.js",
+      "enabled": true,
+      "version": "1.0.0",
+
+      "description": "Processa, valida e transforma dados estruturados",
+      "tags": ["data", "processing", "validation"],
+
+      "routing": {
+        "keywords": [
+          "data", "json", "validate", "transform", "process", "aggregate"
+        ],
+        "priority": 2,
+        "minConfidence": 0.7
+      },
+
+      "input": {
+        "data": { "type": ["object", "array", "string"], "required": true },
+        "operation": { "type": "string", "enum": ["validate", "transform", "aggregate"] },
+        "schema": { "type": "object", "required": false }
+      },
+
+      "subagents": [
+        { "id": "data_validator", "class": "DataValidatorAgent" },
+        { "id": "data_transformer", "class": "DataTransformerAgent" }
+      ],
+
+      "toolSequences": [
+        {
+          "trigger": "default",
+          "sequence": "process_data",
+          "description": "Processamento automático: parse → validate → transform"
+        }
+      ],
+
+      "tools": [
+        {
+          "id": "json_parser",
+          "required": true,
+          "phase": "parsing",
+          "priority": 1
+        }
+      ],
+
+      "knowledgeBase": [
+        { "id": "json_schema", "priority": "high" },
+        { "id": "data_patterns", "priority": "medium" }
+      ],
+
+      "sdk": {
+        "providers": {
+          "local": {
+            "enabled": true,
+            "models": ["mistral:latest"],
+            "defaultModel": "mistral:latest",
+            "temperature": 0.1
+          }
+        }
+      },
+
+      "permissions": {
+        "executeCode": false,
+        "accessKB": true
+      }
+    }
+  },
+
+  "tools": {
+    "code_executor": {
+      "id": "code_executor",
+      "class": "CodeExecutor",
+      "file": "code-executor.js",
+      "enabled": true,
+      "version": "1.0.0",
+
+      "description": "Executa código JavaScript em sandbox seguro com timeout",
+      "category": "execution",
+      "tags": ["javascript", "execution", "validation"],
+
+      "input": {
+        "code": { "type": "string", "required": true },
+        "timeout": { "type": "number", "default": 5000, "min": 1000, "max": 30000 },
+        "sandbox": { "type": "boolean", "default": true }
+      },
+
+      "constraints": {
+        "maxExecutionTime": 30000,
+        "maxMemory": "50MB",
+        "noFileSystem": true,
+        "noNetwork": true,
+        "noChildProcess": true
+      },
+
+      "requiredBy": ["code_analyzer"],
+      "conflictsWith": [],
+
+      "actions": [
+        {
+          "id": "validate_syntax",
+          "description": "Valida sintaxe JavaScript",
+          "params": ["code", "timeout"],
+          "returnType": "object"
+        },
+        {
+          "id": "check_style",
+          "description": "Verifica estilo e formatação",
+          "params": ["code"],
+          "returnType": "object"
+        },
+        {
+          "id": "execute",
+          "description": "Executa código e retorna resultado",
+          "params": ["code", "timeout", "sandbox"],
+          "returnType": "object"
+        }
+      ]
+    },
+
+    "json_parser": {
+      "id": "json_parser",
+      "class": "JSONParser",
+      "file": "json-parser.js",
+      "enabled": true,
+      "version": "1.0.0",
+
+      "description": "Parse e validação de JSON com suporte a schemas",
+      "category": "data",
+      "tags": ["json", "validation", "parsing"],
+
+      "input": {
+        "json": { "type": "string", "required": true },
+        "schema": { "type": "object", "required": false },
+        "strict": { "type": "boolean", "default": false }
+      },
+
+      "requiredBy": ["data_processor"],
+
+      "actions": [
+        {
+          "id": "parse",
+          "description": "Parse JSON string para objeto",
+          "params": ["json"]
+        },
+        {
+          "id": "validate",
+          "description": "Valida objeto contra schema",
+          "params": ["data", "schema"]
+        },
+        {
+          "id": "parse_response",
+          "description": "Parse resposta estruturada do LLM",
+          "params": ["json"]
+        }
+      ]
+    },
+
+    "file_reader": {
+      "id": "file_reader",
+      "class": "FileReader",
+      "file": "file-reader.js",
+      "enabled": true,
+      "version": "1.0.0",
+
+      "description": "Lê e processa arquivos do sistema com validações de segurança",
+      "category": "io",
+      "tags": ["file", "io", "read"],
+
+      "input": {
+        "path": { "type": "string", "required": true },
+        "encoding": { "type": "string", "default": "utf-8" }
+      },
+
+      "constraints": {
+        "maxFileSize": "10MB",
+        "allowedExtensions": [".js", ".ts", ".json", ".md", ".txt"],
+        "allowedPaths": ["./src", "./data", "./lib"]
+      },
+
+      "actions": [
+        {
+          "id": "read",
+          "description": "Lê conteúdo do arquivo",
+          "params": ["path"]
+        },
+        {
+          "id": "extract_dependencies",
+          "description": "Extrai dependências do código",
+          "params": ["code"]
+        }
+      ]
+    }
+  },
+
+  "knowledgeBase": {
+    "js_syntax": {
+      "id": "js_syntax",
+      "class": "JavaScriptSyntaxKB",
+      "file": "js-syntax.js",
+      "version": "1.0.0",
+
+      "description": "Cobertura completa de sintaxe ES6+, async/await, módulos e mais",
+      "tags": ["javascript", "syntax", "language"],
+
+      "topics": [
+        "variables", "functions", "classes", "async", "imports", "promises", "generators"
+      ],
+
+      "documents": [
+        {
+          "id": "mdn_js",
+          "title": "MDN JavaScript Reference",
+          "source": "https://developer.mozilla.org",
+          "priority": "high"
+        }
+      ],
+
+      "usedBy": ["code_analyzer"]
+    },
+
+    "json_schema": {
+      "id": "json_schema",
+      "class": "JSONSchemaKB",
+      "file": "json-schema.js",
+      "version": "1.0.0",
+
+      "description": "JSON Schema specification, validação e boas práticas",
+      "tags": ["json", "schema", "validation"],
+
+      "usedBy": ["data_processor"]
+    },
+
+    "patterns": {
+      "id": "patterns",
+      "class": "DesignPatternsKB",
+      "file": "patterns.js",
+      "version": "1.0.0",
+
+      "description": "Padrões de design de software (creational, structural, behavioral)",
+      "tags": ["patterns", "design", "architecture"],
+
+      "topics": ["creational", "structural", "behavioral"],
+
+      "usedBy": ["code_analyzer"]
+    },
+
+    "data_patterns": {
+      "id": "data_patterns",
+      "class": "DataPatternsKB",
+      "file": "data-patterns.js",
+      "version": "1.0.0",
+
+      "description": "Padrões comuns em estruturas de dados e transformações",
+      "tags": ["data", "patterns"],
+
+      "usedBy": ["data_processor"]
+    }
+  },
+
+  "mcp": {
+    "mcp_ollama": {
+      "id": "mcp_ollama",
+      "class": "OllamaMCPProvider",
+      "file": "ollama.js",
+      "enabled": true,
+      "version": "1.0.0",
+      "type": "local",
+
+      "name": "Ollama Local",
+      "description": "Executa modelos LLM locais via Ollama (privado, rápido, sem custo)",
+
+      "baseUrl": "http://localhost:11434",
+
+      "models": [
+        {
+          "id": "mistral:latest",
+          "name": "Mistral 7B",
+          "contextWindow": 8192,
+          "speed": "fast",
+          "quality": "high"
+        },
+        {
+          "id": "llama2:latest",
+          "name": "Llama 2 7B",
+          "contextWindow": 4096,
+          "speed": "medium",
+          "quality": "medium"
+        }
+      ],
+
+      "defaultModel": "mistral:latest",
+
+      "healthCheck": {
+        "enabled": true,
+        "endpoint": "/api/tags",
+        "interval": 30000,
+        "timeout": 5000
+      },
+
+      "circuitBreaker": {
+        "enabled": true,
+        "failureThreshold": 5,
+        "successThreshold": 2,
+        "timeout": 60000,
+        "description": "Para fallback automaticamente se Ollama cair"
+      },
+
+      "fallback": "mcp_openai"
+    },
+
+    "mcp_openai": {
+      "id": "mcp_openai",
+      "class": "OpenAIMCPProvider",
+      "file": "openai.js",
+      "enabled": false,
+      "version": "1.0.0",
+      "type": "cloud",
+
+      "name": "OpenAI",
+      "description": "Acesso a GPT-4 e outros modelos via OpenAI API",
+
+      "baseUrl": "https://api.openai.com/v1",
+
+      "authentication": {
+        "type": "api-key",
+        "envVar": "OPENAI_API_KEY",
+        "required": true
+      },
+
+      "models": [
+        {
+          "id": "gpt-4-turbo",
+          "name": "GPT-4 Turbo",
+          "contextWindow": 128000,
+          "speed": "slow",
+          "quality": "excellent",
+          "cost": "high"
+        },
+        {
+          "id": "gpt-3.5-turbo",
+          "name": "GPT-3.5 Turbo",
+          "contextWindow": 16384,
+          "speed": "fast",
+          "quality": "good",
+          "cost": "low"
+        }
+      ]
+    }
+  },
+
+  "governance": {
+    "validation": {
+      "enabled": true,
+      "onLoad": true,
+      "strict": true,
+      "failFast": true
+    },
+
+    "permissions": {
+      "agents": {
+        "maxConcurrent": 10,
+        "timeout": 30000
+      }
+    },
+
+    "audit": {
+      "enabled": true,
+      "logFile": "./logs/audit.log",
+      "trackActions": [
+        "agent.execute",
+        "tool.execute",
+        "mcp.query",
+        "config.reload"
+      ]
+    }
+  },
+
+  "observability": {
+    "logging": {
+      "enabled": true,
+      "level": "info",
+      "transports": [
+        {
+          "type": "console",
+          "enabled": true,
+          "format": "colored"
+        },
+        {
+          "type": "file",
+          "enabled": true,
+          "location": "./logs/system.log",
+          "maxSize": "10mb"
+        }
+      ]
+    },
+
+    "metrics": {
+      "enabled": true,
+      "backend": "memory"
+    }
+  }
+}

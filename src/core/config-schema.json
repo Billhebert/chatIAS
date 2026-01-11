@@ -1,0 +1,262 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "ChatIAS System Configuration Schema",
+  "type": "object",
+  "required": ["system", "agents", "tools"],
+  "properties": {
+    "system": {
+      "type": "object",
+      "required": ["name", "version"],
+      "properties": {
+        "name": { "type": "string" },
+        "version": { "type": "string" },
+        "environment": { "type": "string", "enum": ["development", "production", "test"] },
+        "strict": { "type": "boolean" },
+        "hotReload": { "type": "boolean" }
+      }
+    },
+    "routing": {
+      "type": "object",
+      "properties": {
+        "intelligent": { "type": "boolean" },
+        "strategies": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["id", "type"],
+            "properties": {
+              "id": { "type": "string" },
+              "type": { "type": "string" },
+              "enabled": { "type": "boolean" },
+              "priority": { "type": "number" }
+            }
+          }
+        }
+      }
+    },
+    "middleware": {
+      "type": "object",
+      "properties": {
+        "chain": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["id", "type"],
+            "properties": {
+              "id": { "type": "string" },
+              "type": { "type": "string" },
+              "enabled": { "type": "boolean" },
+              "order": { "type": "number" },
+              "config": { "type": "object" }
+            }
+          }
+        }
+      }
+    },
+    "events": {
+      "type": "object",
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "eventBus": { "type": "string" },
+        "config": { "type": "object" }
+      }
+    },
+    "toolSequences": {
+      "type": "object",
+      "patternProperties": {
+        "^[a-zA-Z_][a-zA-Z0-9_]*$": {
+          "type": "object",
+          "required": ["id", "name", "steps"],
+          "properties": {
+            "id": { "type": "string" },
+            "name": { "type": "string" },
+            "description": { "type": "string" },
+            "tags": { "type": "array", "items": { "type": "string" } },
+            "triggeredBy": { "type": "array", "items": { "type": "string" } },
+            "steps": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": ["order"],
+                "properties": {
+                  "order": { "type": "number" },
+                  "tool": { "type": "string" },
+                  "mcp": { "type": "string" },
+                  "action": { "type": "string" },
+                  "params": { "type": "object" },
+                  "onSuccess": { "type": "string", "enum": ["continue", "stop"] },
+                  "onError": { "type": "string", "enum": ["stop", "skip", "log_warning", "fallback"] },
+                  "fallbackMCP": { "type": "string" },
+                  "description": { "type": "string" }
+                }
+              }
+            },
+            "errorHandling": { "type": "object" },
+            "circuitBreaker": { "type": "object" }
+          }
+        }
+      }
+    },
+    "agents": {
+      "type": "object",
+      "patternProperties": {
+        "^[a-zA-Z_][a-zA-Z0-9_]*$": {
+          "type": "object",
+          "required": ["id", "class", "file"],
+          "properties": {
+            "id": { "type": "string" },
+            "class": { "type": "string" },
+            "file": { "type": "string" },
+            "enabled": { "type": "boolean" },
+            "version": { "type": "string" },
+            "description": { "type": "string" },
+            "tags": { "type": "array", "items": { "type": "string" } },
+            "routing": {
+              "type": "object",
+              "properties": {
+                "keywords": { "type": "array", "items": { "type": "string" } },
+                "priority": { "type": "number" },
+                "minConfidence": { "type": "number" }
+              }
+            },
+            "input": { "type": "object" },
+            "capabilities": { "type": "object" },
+            "subagents": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": ["id", "class"],
+                "properties": {
+                  "id": { "type": "string" },
+                  "class": { "type": "string" }
+                }
+              }
+            },
+            "toolSequences": { "type": "array" },
+            "tools": {
+              "type": "array",
+              "items": {
+                "oneOf": [
+                  { "type": "string" },
+                  {
+                    "type": "object",
+                    "required": ["id"],
+                    "properties": {
+                      "id": { "type": "string" },
+                      "required": { "type": "boolean" },
+                      "phase": { "type": "string" },
+                      "priority": { "type": "number" }
+                    }
+                  }
+                ]
+              }
+            },
+            "knowledgeBase": { "type": "array" },
+            "mcp": { "type": "object" },
+            "sdk": { "type": "object" },
+            "permissions": { "type": "object" },
+            "rateLimit": { "type": "object" }
+          }
+        }
+      }
+    },
+    "tools": {
+      "type": "object",
+      "patternProperties": {
+        "^[a-zA-Z_][a-zA-Z0-9_]*$": {
+          "type": "object",
+          "required": ["id", "class", "file"],
+          "properties": {
+            "id": { "type": "string" },
+            "class": { "type": "string" },
+            "file": { "type": "string" },
+            "enabled": { "type": "boolean" },
+            "version": { "type": "string" },
+            "description": { "type": "string" },
+            "category": { "type": "string" },
+            "tags": { "type": "array", "items": { "type": "string" } },
+            "input": { "type": "object" },
+            "constraints": { "type": "object" },
+            "requiredBy": { "type": "array", "items": { "type": "string" } },
+            "conflictsWith": { "type": "array", "items": { "type": "string" } },
+            "actions": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": ["id", "description"],
+                "properties": {
+                  "id": { "type": "string" },
+                  "description": { "type": "string" },
+                  "params": { "type": "array", "items": { "type": "string" } },
+                  "returnType": { "type": "string" }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "knowledgeBase": {
+      "type": "object",
+      "patternProperties": {
+        "^[a-zA-Z_][a-zA-Z0-9_]*$": {
+          "type": "object",
+          "required": ["id", "class", "file"],
+          "properties": {
+            "id": { "type": "string" },
+            "class": { "type": "string" },
+            "file": { "type": "string" },
+            "version": { "type": "string" },
+            "description": { "type": "string" },
+            "tags": { "type": "array", "items": { "type": "string" } },
+            "topics": { "type": "array", "items": { "type": "string" } },
+            "documents": { "type": "array" },
+            "usedBy": { "type": "array", "items": { "type": "string" } }
+          }
+        }
+      }
+    },
+    "mcp": {
+      "type": "object",
+      "patternProperties": {
+        "^[a-zA-Z_][a-zA-Z0-9_]*$": {
+          "type": "object",
+          "required": ["id", "class", "file", "type"],
+          "properties": {
+            "id": { "type": "string" },
+            "class": { "type": "string" },
+            "file": { "type": "string" },
+            "enabled": { "type": "boolean" },
+            "version": { "type": "string" },
+            "type": { "type": "string", "enum": ["local", "cloud", "hybrid"] },
+            "name": { "type": "string" },
+            "description": { "type": "string" },
+            "baseUrl": { "type": "string" },
+            "models": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": ["id", "name"],
+                "properties": {
+                  "id": { "type": "string" },
+                  "name": { "type": "string" },
+                  "contextWindow": { "type": "number" },
+                  "speed": { "type": "string" },
+                  "quality": { "type": "string" },
+                  "cost": { "type": "string" }
+                }
+              }
+            },
+            "defaultModel": { "type": "string" },
+            "authentication": { "type": "object" },
+            "healthCheck": { "type": "object" },
+            "circuitBreaker": { "type": "object" },
+            "fallback": { "type": "string" }
+          }
+        }
+      }
+    },
+    "governance": { "type": "object" },
+    "observability": { "type": "object" }
+  }
+}
