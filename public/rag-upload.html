@@ -1,0 +1,526 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>RAG Upload - ChatIAS Pro 2.0</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 20px;
+    }
+
+    .container {
+      background: white;
+      border-radius: 20px;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+      max-width: 800px;
+      width: 100%;
+      padding: 40px;
+    }
+
+    .header {
+      text-align: center;
+      margin-bottom: 30px;
+    }
+
+    .header h1 {
+      color: #667eea;
+      font-size: 2.5rem;
+      margin-bottom: 10px;
+    }
+
+    .header p {
+      color: #666;
+      font-size: 1.1rem;
+    }
+
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 15px;
+      margin-bottom: 30px;
+      padding: 20px;
+      background: #f8f9fa;
+      border-radius: 10px;
+    }
+
+    .stat-box {
+      text-align: center;
+    }
+
+    .stat-label {
+      color: #666;
+      font-size: 0.9rem;
+      margin-bottom: 5px;
+    }
+
+    .stat-value {
+      color: #667eea;
+      font-size: 1.8rem;
+      font-weight: bold;
+    }
+
+    .upload-section {
+      margin-bottom: 30px;
+    }
+
+    .section-title {
+      font-size: 1.3rem;
+      color: #333;
+      margin-bottom: 15px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .form-group {
+      margin-bottom: 20px;
+    }
+
+    .form-group label {
+      display: block;
+      color: #555;
+      margin-bottom: 8px;
+      font-weight: 500;
+    }
+
+    .form-group input,
+    .form-group textarea {
+      width: 100%;
+      padding: 12px;
+      border: 2px solid #e0e0e0;
+      border-radius: 8px;
+      font-size: 1rem;
+      transition: border-color 0.3s;
+    }
+
+    .form-group input:focus,
+    .form-group textarea:focus {
+      outline: none;
+      border-color: #667eea;
+    }
+
+    .form-group textarea {
+      min-height: 120px;
+      resize: vertical;
+      font-family: inherit;
+    }
+
+    .btn {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      border: none;
+      padding: 14px 28px;
+      border-radius: 8px;
+      font-size: 1.1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: transform 0.2s, box-shadow 0.2s;
+      width: 100%;
+    }
+
+    .btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+    }
+
+    .btn:active {
+      transform: translateY(0);
+    }
+
+    .btn:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .btn-secondary {
+      background: #6c757d;
+      margin-top: 10px;
+    }
+
+    .btn-danger {
+      background: #dc3545;
+      margin-top: 10px;
+    }
+
+    .message {
+      padding: 15px;
+      border-radius: 8px;
+      margin-bottom: 20px;
+      display: none;
+    }
+
+    .message.success {
+      background: #d4edda;
+      color: #155724;
+      border: 1px solid #c3e6cb;
+      display: block;
+    }
+
+    .message.error {
+      background: #f8d7da;
+      color: #721c24;
+      border: 1px solid #f5c6cb;
+      display: block;
+    }
+
+    .documents-list {
+      max-height: 300px;
+      overflow-y: auto;
+      border: 2px solid #e0e0e0;
+      border-radius: 8px;
+      padding: 15px;
+    }
+
+    .document-item {
+      padding: 12px;
+      background: #f8f9fa;
+      border-radius: 6px;
+      margin-bottom: 10px;
+      border-left: 4px solid #667eea;
+    }
+
+    .document-item h4 {
+      color: #333;
+      margin-bottom: 5px;
+    }
+
+    .document-item p {
+      color: #666;
+      font-size: 0.9rem;
+      margin-bottom: 5px;
+    }
+
+    .document-item .meta {
+      color: #999;
+      font-size: 0.8rem;
+    }
+
+    .loading {
+      display: inline-block;
+      width: 20px;
+      height: 20px;
+      border: 3px solid rgba(255, 255, 255, 0.3);
+      border-radius: 50%;
+      border-top-color: white;
+      animation: spin 1s ease-in-out infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    .bulk-upload {
+      margin-top: 30px;
+      padding-top: 30px;
+      border-top: 2px solid #e0e0e0;
+    }
+
+    .example-format {
+      background: #f8f9fa;
+      padding: 15px;
+      border-radius: 8px;
+      margin-top: 10px;
+      font-family: monospace;
+      font-size: 0.9rem;
+      white-space: pre-wrap;
+      border-left: 4px solid #667eea;
+    }
+
+    .quick-links {
+      margin-top: 30px;
+      padding-top: 20px;
+      border-top: 2px solid #e0e0e0;
+      text-align: center;
+    }
+
+    .quick-links a {
+      color: #667eea;
+      text-decoration: none;
+      margin: 0 15px;
+      font-weight: 500;
+      transition: color 0.3s;
+    }
+
+    .quick-links a:hover {
+      color: #764ba2;
+      text-decoration: underline;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>📚 RAG Upload</h1>
+      <p>Adicione documentos à base de conhecimento do ChatIAS</p>
+    </div>
+
+    <div class="stats" id="stats">
+      <div class="stat-box">
+        <div class="stat-label">Documentos</div>
+        <div class="stat-value" id="stat-documents">-</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-label">Dimensões</div>
+        <div class="stat-value" id="stat-dimensions">-</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-label">Cache Hits</div>
+        <div class="stat-value" id="stat-cache">-</div>
+      </div>
+    </div>
+
+    <div id="message" class="message"></div>
+
+    <!-- Single Document Upload -->
+    <div class="upload-section">
+      <div class="section-title">📝 Upload Individual</div>
+      
+      <div class="form-group">
+        <label for="doc-id">ID do Documento *</label>
+        <input type="text" id="doc-id" placeholder="ex: chatias-intro">
+      </div>
+
+      <div class="form-group">
+        <label for="doc-title">Título *</label>
+        <input type="text" id="doc-title" placeholder="ex: Introdução ao ChatIAS">
+      </div>
+
+      <div class="form-group">
+        <label for="doc-content">Conteúdo *</label>
+        <textarea id="doc-content" placeholder="Digite o conteúdo do documento aqui..."></textarea>
+      </div>
+
+      <div class="form-group">
+        <label for="doc-category">Categoria (opcional)</label>
+        <input type="text" id="doc-category" placeholder="ex: tutorial, api, conceitos">
+      </div>
+
+      <button class="btn" onclick="uploadSingleDocument()">
+        <span id="btn-text">🚀 Adicionar Documento</span>
+      </button>
+    </div>
+
+    <!-- Bulk Upload -->
+    <div class="bulk-upload">
+      <div class="section-title">📦 Upload em Lote (JSON)</div>
+      
+      <div class="form-group">
+        <label for="bulk-json">Cole o JSON com múltiplos documentos</label>
+        <textarea id="bulk-json" placeholder='[{"id": "doc1", "title": "Título", "content": "Conteúdo", "category": "tutorial"}]'></textarea>
+      </div>
+
+      <div class="example-format">Formato esperado:
+[
+  {
+    "id": "doc-unique-id",
+    "title": "Título do Documento",
+    "content": "Conteúdo completo do documento...",
+    "category": "categoria-opcional"
+  }
+]</div>
+
+      <button class="btn" onclick="uploadBulkDocuments()">
+        📦 Upload em Lote
+      </button>
+
+      <button class="btn btn-secondary" onclick="loadExampleData()">
+        💡 Carregar Exemplo
+      </button>
+    </div>
+
+    <!-- Quick Links -->
+    <div class="quick-links">
+      <a href="/chat-v2">💬 Ir para o Chat</a>
+      <a href="#" onclick="loadStats(); return false;">🔄 Atualizar Stats</a>
+      <a href="#" onclick="clearForm(); return false;">🗑️ Limpar Formulário</a>
+    </div>
+  </div>
+
+  <script>
+    // Load stats on page load
+    window.addEventListener('DOMContentLoaded', loadStats);
+
+    async function loadStats() {
+      try {
+        const response = await fetch('/api/rag/info');
+        const data = await response.json();
+        
+        if (data.enabled) {
+          document.getElementById('stat-documents').textContent = data.documents || '0';
+          document.getElementById('stat-dimensions').textContent = data.dimensions || '-';
+          
+          if (data.embedderStats) {
+            document.getElementById('stat-cache').textContent = data.embedderStats.cacheHitRate || '0%';
+          }
+        }
+      } catch (error) {
+        console.error('Error loading stats:', error);
+      }
+    }
+
+    function showMessage(text, type = 'success') {
+      const msg = document.getElementById('message');
+      msg.textContent = text;
+      msg.className = `message ${type}`;
+      
+      setTimeout(() => {
+        msg.style.display = 'none';
+      }, 5000);
+    }
+
+    function setLoading(isLoading) {
+      const btn = document.querySelector('.btn');
+      const btnText = document.getElementById('btn-text');
+      
+      if (isLoading) {
+        btn.disabled = true;
+        btnText.innerHTML = '<span class="loading"></span> Processando...';
+      } else {
+        btn.disabled = false;
+        btnText.innerHTML = '🚀 Adicionar Documento';
+      }
+    }
+
+    async function uploadSingleDocument() {
+      const id = document.getElementById('doc-id').value.trim();
+      const title = document.getElementById('doc-title').value.trim();
+      const content = document.getElementById('doc-content').value.trim();
+      const category = document.getElementById('doc-category').value.trim();
+
+      // Validation
+      if (!id || !title || !content) {
+        showMessage('❌ Por favor, preencha todos os campos obrigatórios (ID, Título e Conteúdo)', 'error');
+        return;
+      }
+
+      const document = {
+        id,
+        title,
+        content,
+        ...(category && { category })
+      };
+
+      setLoading(true);
+
+      try {
+        const response = await fetch('/api/rag/add-documents', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ documents: [document] })
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+          showMessage(`✅ Documento adicionado com sucesso! (${result.added} documento${result.added > 1 ? 's' : ''})`, 'success');
+          clearForm();
+          loadStats();
+        } else {
+          showMessage(`❌ Erro ao adicionar documento: ${result.error}`, 'error');
+        }
+      } catch (error) {
+        showMessage(`❌ Erro de conexão: ${error.message}`, 'error');
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    async function uploadBulkDocuments() {
+      const jsonText = document.getElementById('bulk-json').value.trim();
+
+      if (!jsonText) {
+        showMessage('❌ Por favor, cole o JSON com os documentos', 'error');
+        return;
+      }
+
+      let documents;
+      try {
+        documents = JSON.parse(jsonText);
+        
+        if (!Array.isArray(documents)) {
+          throw new Error('O JSON deve ser um array de documentos');
+        }
+
+        // Validate each document
+        for (const doc of documents) {
+          if (!doc.id || !doc.title || !doc.content) {
+            throw new Error('Cada documento deve ter id, title e content');
+          }
+        }
+      } catch (error) {
+        showMessage(`❌ JSON inválido: ${error.message}`, 'error');
+        return;
+      }
+
+      setLoading(true);
+
+      try {
+        const response = await fetch('/api/rag/add-documents', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ documents })
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+          showMessage(`✅ Upload concluído! ${result.added} documento(s) adicionado(s), ${result.skipped || 0} ignorado(s)`, 'success');
+          document.getElementById('bulk-json').value = '';
+          loadStats();
+        } else {
+          showMessage(`❌ Erro no upload: ${result.error}`, 'error');
+        }
+      } catch (error) {
+        showMessage(`❌ Erro de conexão: ${error.message}`, 'error');
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    function loadExampleData() {
+      const example = [
+        {
+          id: "exemplo-rag",
+          title: "Como funciona o RAG no ChatIAS",
+          content: "O RAG (Retrieval-Augmented Generation) no ChatIAS usa Qdrant para busca vetorial e Ollama para gerar embeddings. Quando você faz uma pergunta, o sistema: 1) Gera embedding da pergunta usando nomic-embed-text, 2) Busca documentos similares no Qdrant, 3) Injeta o contexto relevante no prompt do LLM, 4) Retorna resposta baseada em conhecimento real.",
+          category: "tutorial"
+        },
+        {
+          id: "exemplo-decisao",
+          title: "Sistema de Decisão Inteligente",
+          content: "O ChatIAS Pro 2.0 usa um Smart Decision Engine que analisa cada mensagem e decide automaticamente qual estratégia usar: LLM-only para conversação simples (mais rápido), RAG para perguntas sobre conhecimento, Agents para tarefas complexas, ou Tools para comandos diretos. A decisão é feita por padrões regex (95% confiança) ou análise semântica (75-80% confiança).",
+          category: "conceitos"
+        }
+      ];
+
+      document.getElementById('bulk-json').value = JSON.stringify(example, null, 2);
+      showMessage('💡 Exemplo carregado! Clique em "Upload em Lote" para adicionar', 'success');
+    }
+
+    function clearForm() {
+      document.getElementById('doc-id').value = '';
+      document.getElementById('doc-title').value = '';
+      document.getElementById('doc-content').value = '';
+      document.getElementById('doc-category').value = '';
+    }
+  </script>
+</body>
+</html>

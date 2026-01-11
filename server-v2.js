@@ -16,6 +16,7 @@ import { fileURLToPath } from "url";
 import { createSystem } from "./src/core/system-loader.js";
 import { ChatEngine } from "./src/core/chat-engine.js";
 import { logger } from "./src/core/logger.js";
+import { OllamaEmbedder } from "./src/core/ollama-embedder.js";
 import { createOpencodeClient } from "@opencode-ai/sdk";
 import { spawn } from "node:child_process";
 
@@ -31,6 +32,7 @@ const OPENCODE_PORT = process.env.OPENCODE_PORT || 4097;  // Porta para NOVO ser
 let system = null;
 let chatEngine = null;
 let opencodeProcess = null;  // Processo do opencode-cli.exe (se criado)
+let ollamaEmbedder = null;   // Embedder para RAG
 
 // Middleware
 app.use(cors());
@@ -242,18 +244,45 @@ async function initSystem() {
   const ollamaProvider = system.mcpRegistry.get("mcp_ollama");
   if (ollamaProvider && ollamaProvider.connected) {
     logger.success('mcp', `Ollama connected`, { url: ollamaProvider.baseUrl });
+    
+    // Inicializa embedder para RAG
+    logger.info('embedder', 'Initializing Ollama embedder for RAG...');
+    ollamaEmbedder = new OllamaEmbedder({
+      baseUrl: ollamaProvider.baseUrl,
+      model: process.env.OLLAMA_EMBED_MODEL || 'nomic-embed-text',
+      dimensions: 768,
+      cacheMaxSize: 500
+    });
+    
+    const embedderInitialized = await ollamaEmbedder.initialize();
+    if (embedderInitialized) {
+      logger.success('embedder', 'Ollama embedder ready', ollamaEmbedder.getInfo());
+    } else {
+      logger.warn('embedder', 'Ollama embedder failed to initialize - RAG will use mock embeddings');
+      ollamaEmbedder = null;
+    }
   } else {
-    logger.warn('mcp', 'Ollama not connected');
+    logger.warn('mcp', 'Ollama not connected - RAG will use mock embeddings');
   }
 
-  // 4. Cria o ChatEngine
+  // 4. Cria o ChatEngine COM SISTEMA INTELIGENTE
   chatEngine = new ChatEngine({
     defaultModel: "llama3.2:latest",
     temperature: 0.7,
     maxTokens: 4000,
     maxHistory: 20,
     smartIntentDetection: true,
-    intentConfidenceThreshold: 0.7
+    intentConfidenceThreshold: 0.7,
+    // RAG Configuration
+    enableRAG: true,
+    qdrantUrl: process.env.QDRANT_URL || 'http://localhost:6333',
+    qdrantCollection: process.env.QDRANT_COLLECTION || 'knowledge_base',
+    ragTopK: 5,
+    ragScoreThreshold: 0.7,
+    embedder: ollamaEmbedder,  // Injeta o embedder do Ollama
+    // Smart System
+    enableAgents: true,
+    enableTools: true
   });
 
   // 5. Inicializa o ChatEngine
@@ -334,12 +363,14 @@ app.post("/api/chat", async (req, res) => {
     res.json({
       success: result.success,
       response: result.text,
-      intent: result.intent,
-      intentConfidence: result.intentConfidence,
-      intentMethod: result.intentMethod,
+      strategy: result.strategy,
+      strategyConfidence: result.strategyConfidence,
+      strategyReasoning: result.strategyReasoning,
       provider: result.provider,
       usedAgent: result.usedAgent,
       usedTool: result.usedTool,
+      usedRAG: result.usedRAG,
+      ragResults: result.ragResults,
       duration: result.duration,
       requestId: result.requestId,
       logs: result.logs || [],
@@ -479,6 +510,118 @@ app.get("/api/logs/stream", (req, res) => {
 });
 
 /**
+ * POST /api/rag/add-documents
+ * Adiciona documentos ao Qdrant
+ */
+app.post("/api/rag/add-documents", async (req, res) => {
+  if (!chatEngine || !chatEngine.rag) {
+    return res.status(503).json({ error: "RAG system not initialized" });
+  }
+
+  const { documents } = req.body;
+
+  if (!Array.isArray(documents) || documents.length === 0) {
+    return res.status(400).json({ error: "Documents array is required" });
+  }
+
+  try {
+    const result = await chatEngine.rag.addDocuments(documents);
+    res.json({
+      success: result.success,
+      added: result.added,
+      skipped: result.skipped,
+      error: result.error
+    });
+  } catch (error) {
+    logger.error('system', `Add documents error: ${error.message}`);
+    res.json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+/**
+ * POST /api/rag/search
+ * Busca documentos no Qdrant
+ */
+app.post("/api/rag/search", async (req, res) => {
+  if (!chatEngine || !chatEngine.rag) {
+    return res.status(503).json({ error: "RAG system not initialized" });
+  }
+
+  const { query, topK, scoreThreshold } = req.body;
+
+  if (!query || typeof query !== 'string') {
+    return res.status(400).json({ error: "Query is required" });
+  }
+
+  try {
+    const result = await chatEngine.rag.search(query, { topK, scoreThreshold });
+    res.json({
+      success: result.success,
+      results: result.results,
+      context: result.context,
+      duration: result.duration,
+      error: result.error
+    });
+  } catch (error) {
+    logger.error('system', `RAG search error: ${error.message}`);
+    res.json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+/**
+ * GET /api/rag/info
+ * Informações do sistema RAG
+ */
+app.get("/api/rag/info", (req, res) => {
+  if (!chatEngine || !chatEngine.rag) {
+    return res.status(503).json({ error: "RAG system not initialized" });
+  }
+
+  res.json(chatEngine.rag.getInfo());
+});
+
+/**
+ * POST /api/decision/analyze
+ * Analisa uma mensagem e retorna a decisão (sem executar)
+ */
+app.post("/api/decision/analyze", async (req, res) => {
+  if (!chatEngine || !chatEngine.decisionEngine) {
+    return res.status(503).json({ error: "Decision engine not initialized" });
+  }
+
+  const { message } = req.body;
+
+  if (!message || typeof message !== 'string') {
+    return res.status(400).json({ error: "Message is required" });
+  }
+
+  try {
+    const decision = await chatEngine.decisionEngine.analyze(message);
+    res.json({
+      success: true,
+      decision: {
+        strategy: decision.strategy,
+        confidence: decision.confidence,
+        reasoning: decision.reasoning,
+        metadata: decision.metadata
+      }
+    });
+  } catch (error) {
+    logger.error('system', `Decision analysis error: ${error.message}`);
+    res.json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+/**
  * GET /chat-v2
  */
 app.get("/chat-v2", (req, res) => {
@@ -493,6 +636,13 @@ app.get("/debug-chat", (req, res) => {
 });
 
 /**
+ * GET /rag-upload - Página de upload de documentos para RAG
+ */
+app.get("/rag-upload", (req, res) => {
+  res.sendFile(path.join(__dirname, "public", "rag-upload.html"));
+});
+
+/**
  * Inicializa o servidor
  */
 async function startServer() {
@@ -504,6 +654,7 @@ async function startServer() {
       logger.success('system', `║  Server running on http://localhost:${PORT}           ║`);
       logger.info('system', '╠══════════════════════════════════════════════════════╣');
       logger.info('system', `║  Chat UI:    http://localhost:${PORT}/chat-v2          ║`);
+      logger.info('system', `║  RAG Upload: http://localhost:${PORT}/rag-upload       ║`);
       logger.info('system', `║  Health:     http://localhost:${PORT}/api/health       ║`);
       logger.info('system', `║  Tools:      http://localhost:${PORT}/api/tools        ║`);
       logger.info('system', `║  Agents:     http://localhost:${PORT}/api/agents       ║`);

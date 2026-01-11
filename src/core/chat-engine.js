@@ -10,6 +10,8 @@
  */
 
 import { logger } from './logger.js';
+import { SmartDecisionEngine } from './smart-decision-engine.js';
+import { QdrantRAG } from './qdrant-rag.js';
 
 export class ChatEngine {
   constructor(options = {}) {
@@ -31,6 +33,23 @@ export class ChatEngine {
     this.agentRegistry = null;
     this.activeProvider = null;
     this.logs = [];
+    
+    // Novos sistemas inteligentes
+    this.decisionEngine = new SmartDecisionEngine({
+      enableRAG: options.enableRAG !== false,
+      enableAgents: options.enableAgents !== false,
+      enableTools: options.enableTools !== false
+    });
+    
+    this.rag = new QdrantRAG({
+      baseUrl: options.qdrantUrl || 'http://localhost:6333',
+      collectionName: options.qdrantCollection || 'knowledge_base',
+      topK: options.ragTopK || 5,
+      scoreThreshold: options.ragScoreThreshold || 0.7,
+      enabled: options.enableRAG !== false
+    });
+    
+    this.lastStrategy = null;  // Para contexto de decisão
   }
 
   /**
@@ -42,6 +61,15 @@ export class ChatEngine {
     this.toolRegistry = context.toolRegistry;
     this.agentRegistry = context.agentRegistry;
     this.sdkSessionId = null;
+    
+    // Inicializa RAG
+    logger.info('system', 'Initializing RAG system...');
+    const ragInitialized = await this.rag.initialize();
+    if (ragInitialized) {
+      logger.success('system', 'RAG system ready', this.rag.getInfo());
+    } else {
+      logger.warn('system', 'RAG system disabled - will use LLM only');
+    }
 
     // Cria sessão SDK se disponível
     if (this.sdk) {
@@ -220,7 +248,7 @@ Respond with ONLY the intent type, nothing else.`;
   }
 
   /**
-   * Processa mensagem de chat
+   * Processa mensagem de chat COM SISTEMA INTELIGENTE
    */
   async chat(message, options = {}) {
     const requestId = `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
@@ -229,21 +257,51 @@ Respond with ONLY the intent type, nothing else.`;
     logger.info('request', `Message: "${message}"`, { length: message.length }, requestId);
 
     try {
-      // 1. Detecta intenção
-      logger.debug('intent', 'Starting intent analysis...', null, requestId);
-      const intent = await this.detectIntent(message);
-      logger.info('intent', `Detected: ${intent.type} (${Math.round(intent.confidence * 100)}% via ${intent.method})`, null, requestId);
+      // 1. DECISÃO INTELIGENTE: Qual estratégia usar?
+      logger.info('decision', 'Analyzing message with SmartDecisionEngine...', null, requestId);
+      const decision = await this.decisionEngine.analyze(message, {
+        requestId,
+        lastStrategy: this.lastStrategy,
+        historySize: this.history.length
+      });
+      
+      logger.success('decision', `Strategy selected: ${decision.strategy}`, {
+        confidence: `${Math.round(decision.confidence * 100)}%`,
+        reasoning: decision.reasoning
+      }, requestId);
+      
+      this.lastStrategy = decision.strategy;
 
-      // 2. Processa baseado na intenção
-      logger.info('system', `Processing as: ${intent.type}`, null, requestId);
+      // 2. EXECUTA ESTRATÉGIA
       let result;
-
-      if (intent.type === 'agent') {
-        result = await this._handleAgentIntent(message, requestId);
-      } else if (intent.type === 'command') {
-        result = await this._handleCommandIntent(message, requestId);
-      } else {
-        result = await this._handleConversationalIntent(message, requestId);
+      
+      switch (decision.strategy) {
+        case 'llm':
+          // Apenas LLM - conversação simples (MAIS RÁPIDO)
+          result = await this._handleLLMOnly(message, requestId);
+          break;
+          
+        case 'rag':
+          // RAG + LLM - perguntas sobre conhecimento
+          result = await this._handleRAGQuery(message, requestId);
+          break;
+          
+        case 'agent':
+          // Agente especializado - tarefas complexas
+          // Passa a sugestão do decision engine
+          result = await this._handleAgentTask(message, requestId, decision.metadata);
+          break;
+          
+        case 'tool':
+          // Ferramenta específica - ações diretas
+          // Passa a sugestão do decision engine
+          result = await this._handleToolCommand(message, requestId, decision.metadata);
+          break;
+          
+        default:
+          // Fallback para LLM
+          logger.warn('decision', `Unknown strategy "${decision.strategy}", falling back to LLM`, null, requestId);
+          result = await this._handleLLMOnly(message, requestId);
       }
 
       // 3. Adiciona ao histórico
@@ -253,19 +311,21 @@ Respond with ONLY the intent type, nothing else.`;
       const duration = Date.now() - startTime;
       logger.success('response', `Response generated`, { 
         duration: `${duration}ms`,
-        intent: intent.type,
+        strategy: decision.strategy,
         provider: result.provider 
       }, requestId);
 
       return {
         success: true,
         text: result.text,
-        intent: intent.type,
-        intentConfidence: intent.confidence,
-        intentMethod: intent.method,
+        strategy: decision.strategy,
+        strategyConfidence: decision.confidence,
+        strategyReasoning: decision.reasoning,
         provider: result.provider,
         usedAgent: result.usedAgent,
         usedTool: result.usedTool,
+        usedRAG: result.usedRAG,
+        ragResults: result.ragResults,
         duration,
         requestId,
         logs: this._getRequestLogs(requestId)
@@ -284,6 +344,115 @@ Respond with ONLY the intent type, nothing else.`;
         logs: this._getRequestLogs(requestId)
       };
     }
+  }
+
+  /**
+   * Handler: Apenas LLM (conversação simples)
+   * Mais rápido - sem busca em RAG, sem agentes
+   */
+  async _handleLLMOnly(message, requestId) {
+    logger.info('llm', 'Using LLM-only mode (fastest)', null, requestId);
+    return await this._handleConversationalIntent(message, requestId);
+  }
+
+  /**
+   * Handler: RAG + LLM (perguntas sobre conhecimento)
+   * Busca contexto relevante antes de gerar resposta
+   */
+  async _handleRAGQuery(message, requestId) {
+    logger.info('rag', 'Using RAG mode - searching knowledge base...', null, requestId);
+    
+    // 1. Busca contexto no Qdrant
+    const ragResult = await this.rag.search(message, { requestId });
+    
+    if (!ragResult.success || ragResult.results.length === 0) {
+      logger.warn('rag', 'No relevant context found, falling back to LLM-only', null, requestId);
+      return await this._handleLLMOnly(message, requestId);
+    }
+    
+    logger.success('rag', `Found ${ragResult.results.length} relevant documents`, null, requestId);
+    
+    // 2. Constrói prompt com contexto
+    const contextualPrompt = `${ragResult.context}\n\nUsuário: ${message}\n\nAssistente: Baseando-me no contexto acima, vou responder:`;
+    
+    // 3. Gera resposta com contexto
+    const llmResult = await this._handleConversationalIntent(contextualPrompt, requestId);
+    
+    return {
+      ...llmResult,
+      usedRAG: true,
+      ragResults: ragResult.results.map(r => ({
+        score: r.score,
+        text: r.text.substring(0, 100) + '...'
+      }))
+    };
+  }
+
+  /**
+   * Handler: Tarefas com Agentes
+   * Delega para agente especializado
+   */
+  async _handleAgentTask(message, requestId, metadata = {}) {
+    logger.info('agent', 'Using agent mode - finding appropriate agent...', null, requestId);
+    
+    // Se o decision engine sugeriu um agente específico, usa ele primeiro
+    if (metadata.suggestedAgent) {
+      logger.info('agent', `Decision engine suggested: ${metadata.suggestedAgent}`, { keywords: metadata.matchedKeywords }, requestId);
+      const suggestedAgent = this._findAgentById(metadata.suggestedAgent);
+      
+      if (suggestedAgent) {
+        logger.info('agent', `Using suggested agent: ${suggestedAgent.id}`, null, requestId);
+        try {
+          const result = await suggestedAgent.execute({ input: message });
+          const formatted = this._formatAgentResponse(suggestedAgent, result);
+
+          return {
+            text: formatted,
+            provider: 'agent',
+            usedAgent: suggestedAgent.id
+          };
+        } catch (error) {
+          logger.error('agent', `Suggested agent failed: ${error.message}, trying fallback`, null, requestId);
+        }
+      } else {
+        logger.warn('agent', `Suggested agent "${metadata.suggestedAgent}" not found`, null, requestId);
+      }
+    }
+    
+    return await this._handleAgentIntent(message, requestId);
+  }
+
+  /**
+   * Handler: Ferramenta (ações específicas)
+   * Executa ferramenta diretamente
+   */
+  async _handleToolCommand(message, requestId, metadata = {}) {
+    logger.info('tool', 'Using tool mode - executing command...', null, requestId);
+    
+    // Se o decision engine sugeriu uma ferramenta específica, usa ela primeiro
+    if (metadata.suggestedTool) {
+      logger.info('tool', `Decision engine suggested: ${metadata.suggestedTool}`, { keywords: metadata.matchedKeywords }, requestId);
+      const suggestedTool = this._findToolById(metadata.suggestedTool);
+      
+      if (suggestedTool) {
+        logger.info('tool', `Using suggested tool: ${suggestedTool.id}`, null, requestId);
+        try {
+          const params = this._extractToolParams(message, metadata.suggestedTool);
+          const result = await suggestedTool.execute(params);
+          return {
+            text: JSON.stringify(result, null, 2),
+            provider: 'tool',
+            usedTool: suggestedTool.id
+          };
+        } catch (error) {
+          logger.error('tool', `Suggested tool failed: ${error.message}, trying fallback`, null, requestId);
+        }
+      } else {
+        logger.warn('tool', `Suggested tool "${metadata.suggestedTool}" not found`, null, requestId);
+      }
+    }
+    
+    return await this._handleCommandIntent(message, requestId);
   }
 
   /**
@@ -494,21 +663,82 @@ Respond with ONLY the intent type, nothing else.`;
 
     return null;
   }
+  
+  /**
+   * Encontra agente por ID específico
+   */
+  _findAgentById(agentId) {
+    if (!this.agentRegistry) return null;
+    
+    const agents = this.agentRegistry.list();
+    return agents.find(agent => agent.id === agentId);
+  }
+  
+  /**
+   * Encontra tool por ID específico
+   */
+  _findToolById(toolId) {
+    if (!this.toolRegistry) return null;
+    
+    const tools = this.toolRegistry.list();
+    return tools.find(tool => tool.id === toolId);
+  }
 
   /**
    * Detecta tool baseado na mensagem
    */
   _detectTool(message) {
-    // Implementação simplificada
+    if (!this.toolRegistry) return null;
+    
+    const tools = this.toolRegistry.list();
+    const lower = message.toLowerCase();
+    
+    // Tenta encontrar tool por keywords
+    for (const tool of tools) {
+      const keywords = tool.routing?.keywords || [];
+      if (keywords.some(keyword => lower.includes(keyword.toLowerCase()))) {
+        return tool;
+      }
+    }
+    
     return null;
   }
 
   /**
-   * Extrai parâmetros para tool
+   * Extrai parâmetros para tool baseado no toolId
    */
-  _extractToolParams(message) {
-    // Implementação simplificada
-    return {};
+  _extractToolParams(message, toolId = null) {
+    const params = {};
+    
+    // Extração básica baseada no tipo de tool
+    if (toolId === 'soma') {
+      // Extrai números da mensagem
+      const numbers = message.match(/\d+/g);
+      if (numbers && numbers.length >= 2) {
+        params.a = parseInt(numbers[0]);
+        params.b = parseInt(numbers[1]);
+      }
+    } else if (toolId === 'file_reader') {
+      // Extrai path do arquivo
+      const pathMatch = message.match(/['"]([^'"]+)['"]/);
+      if (pathMatch) {
+        params.path = pathMatch[1];
+      }
+    } else if (toolId === 'json_parser') {
+      // Extrai JSON da mensagem
+      const jsonMatch = message.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        params.json = jsonMatch[0];
+      }
+    } else if (toolId === 'code_executor') {
+      // Extrai código entre ```
+      const codeMatch = message.match(/```(?:js|javascript)?\n?([\s\S]*?)```/);
+      if (codeMatch) {
+        params.code = codeMatch[1].trim();
+      }
+    }
+    
+    return params;
   }
 
   /**
@@ -578,7 +808,9 @@ Respond with ONLY the intent type, nothing else.`;
       hasSDK: !!this.sdk,
       sdkSessionId: this.sdkSessionId,
       toolsCount: this.toolRegistry?.size() || 0,
-      agentsCount: this.agentRegistry?.size() || 0
+      agentsCount: this.agentRegistry?.size() || 0,
+      rag: this.rag.getInfo(),
+      lastStrategy: this.lastStrategy
     };
   }
 

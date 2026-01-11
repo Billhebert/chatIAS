@@ -774,17 +774,47 @@
         
         let headerHtml = '';
         
-        // Agent badge
-        if (meta.agent) {
+        // Strategy badge (novo!)
+        if (meta.strategy) {
+          const strategyEmoji = {
+            'llm': '⚡',
+            'rag': '📚',
+            'agent': '🤖',
+            'tool': '🔧'
+          };
+          const strategyColor = {
+            'llm': '#4ade80',
+            'rag': '#60a5fa',
+            'agent': '#8b5cf6',
+            'tool': '#06b6d4'
+          };
+          const emoji = strategyEmoji[meta.strategy] || '💬';
+          const color = strategyColor[meta.strategy] || '#999';
+          headerHtml += `<span class="agent-badge" style="background: ${color}">${emoji} ${meta.strategy.toUpperCase()}</span>`;
+          
+          // Confidence
+          if (meta.strategyConfidence) {
+            const confidence = Math.round(meta.strategyConfidence * 100);
+            headerHtml += `<span style="font-size: 0.65rem; color: #aaa">${confidence}%</span>`;
+          }
+        }
+        
+        // Agent badge (legacy)
+        if (meta.agent && !meta.strategy) {
           headerHtml += `<span class="agent-badge">${meta.agent}</span>`;
         }
         
-        // Intent detection method
+        // Intent detection method (legacy)
         if (meta.intentMethod) {
           headerHtml += `<span class="intent-badge">
             ${meta.intent || 'chat'}
             <span class="intent-method">${meta.intentMethod}</span>
           </span>`;
+        }
+        
+        // RAG indicator
+        if (meta.usedRAG) {
+          headerHtml += `<span class="agent-badge" style="background: #60a5fa">📚 RAG</span>`;
         }
         
         // Duration
@@ -964,9 +994,13 @@
 
         if (data.success) {
           addMessage('assistant', data.response, {
+            strategy: data.strategy,
+            strategyConfidence: data.strategyConfidence,
+            strategyReasoning: data.strategyReasoning,
             agent: data.usedAgent,
             intent: data.intent,
             intentMethod: data.intentMethod,
+            usedRAG: data.usedRAG,
             duration: data.duration,
             requestId: data.requestId
           });
