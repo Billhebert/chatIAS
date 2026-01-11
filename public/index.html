@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ChatIAS Control Center</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <div id="app">
+      <header class="app-header">
+        <div>
+          <p class="eyebrow">ChatIAS • Sistema Multi-Agente</p>
+          <h1>Central de Operações</h1>
+          <p class="subtitle">
+            Observe agentes, ferramentas e modelos em tempo real. Execute prompts,
+            acompanhe tentativas e visualize fallback automático entre SDK e
+            Ollama.
+          </p>
+        </div>
+        <div class="sdk-status" id="sdk-status">
+          <div class="sdk-pill offline">SDK Desconhecido</div>
+          <div class="ollama-pill offline">Ollama Desconhecido</div>
+          <a href="/chat/" class="ghost">Ir para Console de Chat</a>
+        </div>
+      </header>
+
+      <main>
+        <section class="grid grid-2">
+          <div class="panel">
+            <div class="panel-header">
+              <h2>Agentes & Subagentes</h2>
+              <button id="refresh-agents" class="ghost">Atualizar</button>
+            </div>
+            <div id="agents-list" class="cards-list"></div>
+          </div>
+
+          <div class="panel">
+            <div class="panel-header">
+              <h2>Ferramentas Registradas</h2>
+              <button id="refresh-tools" class="ghost">Atualizar</button>
+            </div>
+            <div id="tools-list" class="tools-list"></div>
+          </div>
+        </section>
+
+        <section class="grid grid-2">
+          <div class="panel">
+            <div class="panel-header">
+              <h2>Modelos & Fallback</h2>
+              <button id="refresh-sdk" class="ghost">Atualizar</button>
+            </div>
+            <div id="models-info" class="models-list"></div>
+          </div>
+
+          <div class="panel run-panel">
+            <div class="panel-header">
+              <h2>Executar Prompt / Tarefa</h2>
+            </div>
+            <form id="run-form" class="run-form">
+              <label>
+                <span>Entrada</span>
+                <textarea
+                  id="prompt-input"
+                  placeholder="Descreva o que o agente deve fazer..."
+                  rows="5"
+                  required
+                ></textarea>
+              </label>
+              <label>
+                <span>Agente</span>
+                <select id="agent-select">
+                  <option value="auto">Auto (detecção)</option>
+                  <option value="code">CodeAnalyzer</option>
+                  <option value="data">DataProcessor</option>
+                  <option value="task">TaskManager</option>
+                </select>
+              </label>
+              <label class="checkbox">
+                <input type="checkbox" id="use-fallback" checked />
+                <span>Permitir fallback (SDK → Ollama)</span>
+              </label>
+              <button type="submit">Executar</button>
+            </form>
+          </div>
+        </section>
+
+        <section class="panel">
+          <div class="panel-header">
+            <h2>Execuções Recentes</h2>
+          </div>
+          <div id="runs-log" class="runs-log"></div>
+        </section>
+      </main>
+    </div>
+
+    <script src="/app.js" type="module"></script>
+  </body>
+</html>

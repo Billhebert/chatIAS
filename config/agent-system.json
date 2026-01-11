@@ -1,0 +1,60 @@
+{
+  "tools": [
+    "file_reader",
+    "json_parser",
+    "code_executor",
+    "soma"
+  ],
+  "agents": [
+    {
+      "key": "code",
+      "label": "CodeAnalyzer",
+      "class": "CodeAnalyzerAgent",
+      "subagents": [
+        "SyntaxCheckerAgent",
+        "CodeFormatterAgent",
+        "DependencyAnalyzerAgent"
+      ],
+      "tools": ["file_reader", "code_executor"]
+    },
+    {
+      "key": "data",
+      "label": "DataProcessor",
+      "class": "DataProcessorAgent",
+      "subagents": [
+        "DataValidatorAgent",
+        "DataTransformerAgent",
+        "DataAggregatorAgent"
+      ],
+      "tools": ["json_parser"]
+    },
+    {
+      "key": "task",
+      "label": "TaskManager",
+      "class": "TaskManagerAgent",
+      "subagents": [
+        "TaskSchedulerAgent",
+        "TaskExecutorAgent",
+        "TaskReporterAgent"
+      ],
+      "tools": ["file_reader"]
+    }
+  ],
+  "sdk": {
+    "remoteModels": [
+      { "providerID": "opencode", "modelID": "minimax-m2.1-free" },
+      { "providerID": "opencode", "modelID": "glm-4.7-free" },
+      { "providerID": "openrouter", "modelID": "kwaipilot/kat-coder-pro:free" },
+      { "providerID": "openrouter", "modelID": "google/gemini-2.0-flash-exp:free" },
+      { "providerID": "openrouter", "modelID": "qwen/qwen3-coder:free" },
+      { "providerID": "openrouter", "modelID": "mistralai/devstral-2512:free" },
+      { "providerID": "openrouter", "modelID": "meta-llama/llama-3.3-70b-instruct:free" },
+      { "providerID": "openrouter", "modelID": "mistralai/devstral-small-2507" },
+      { "providerID": "openrouter", "modelID": "z-ai/glm-4.5-air:free" },
+      { "providerID": "zenmux", "modelID": "xiaomi/mimo-v2-flash-free" },
+      { "providerID": "zenmux", "modelID": "z-ai/glm-4.6v-flash-free" },
+      { "providerID": "zenmux", "modelID": "kuaishou/kat-coder-pro-v1-free" }
+    ],
+    "ollamaModels": ["llama3.2", "qwen2.5-coder", "deepseek-coder-v2"]
+  }
+}

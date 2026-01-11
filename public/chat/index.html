@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ChatIAS • Console de Chat</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="/styles.css" />
+    <link rel="stylesheet" href="/chat/styles.css" />
+  </head>
+  <body>
+    <div id="chat-app">
+      <header class="chat-header">
+        <div>
+          <p class="eyebrow">Chat IAS</p>
+          <h1>Console Conversacional</h1>
+          <p class="subtitle">
+            Converse com os agentes em tempo real. A cada mensagem, acompanhe a legenda
+            das ações executadas: chamadas de subagentes, uso de ferramentas e tentativas
+            de modelos (SDK → Fallback Ollama).
+          </p>
+        </div>
+        <nav class="chat-nav">
+          <a href="/" class="ghost">← Voltar para Dashboard</a>
+        </nav>
+      </header>
+
+      <main class="chat-layout">
+        <section class="chat-panel">
+          <div id="messages" class="messages"></div>
+          <form id="chat-form" class="chat-form">
+            <textarea
+              id="chat-input"
+              placeholder="Digite sua pergunta ou comando..."
+              rows="3"
+              required
+            ></textarea>
+            <div class="chat-controls">
+              <select id="chat-agent">
+                <option value="auto">Auto</option>
+                <option value="code">CodeAnalyzer</option>
+                <option value="data">DataProcessor</option>
+                <option value="task">TaskManager</option>
+              </select>
+              <label class="checkbox">
+                <input type="checkbox" id="chat-fallback" checked />
+                <span>Fallback SDK/Ollama</span>
+              </label>
+              <button type="submit">Enviar</button>
+            </div>
+          </form>
+        </section>
+
+        <aside class="legend-panel">
+          <h2>Legenda de Execução</h2>
+          <p>Entenda o que acontece a cada mensagem:</p>
+          <div class="legend-list">
+            <div class="legend-item">
+              <span class="legend-dot local"></span>
+              <div>
+                <strong>Agente Local</strong>
+                <p>Resumo gerado pelos subagentes e ferramentas internas.</p>
+              </div>
+            </div>
+            <div class="legend-item">
+              <span class="legend-dot remote"></span>
+              <div>
+                <strong>SDK (Modelos Remotos)</strong>
+                <p>Tentativas automáticas via OpenCode SDK antes do fallback.</p>
+              </div>
+            </div>
+            <div class="legend-item">
+              <span class="legend-dot ollama"></span>
+              <div>
+                <strong>Fallback Ollama</strong>
+                <p>Resposta local quando todos os modelos remotos falham.</p>
+              </div>
+            </div>
+            <div class="legend-item">
+              <span class="legend-dot subagent"></span>
+              <div>
+                <strong>Subagentes</strong>
+                <p>Cada passo executado (SyntaxChecker, DataTransformer, etc.).</p>
+              </div>
+            </div>
+            <div class="legend-item">
+              <span class="legend-dot tool"></span>
+              <div>
+                <strong>Ferramentas</strong>
+                <p>Uso de file_reader, json_parser, code_executor e outras tools.</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="legend-history">
+            <h3>Histórico de Modelos</h3>
+            <ul id="history-list"></ul>
+          </div>
+        </aside>
+      </main>
+    </div>
+
+    <script type="module" src="/chat/main.js"></script>
+  </body>
+</html>
