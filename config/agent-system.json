@@ -3,7 +3,13 @@
     "file_reader",
     "json_parser",
     "code_executor",
-    "soma"
+    "soma",
+    "subtracao",
+    "multiplicacao",
+    "divisao",
+    "converter_temperatura",
+    "formatar_data",
+    "converter_distancia"
   ],
   "agents": [
     {

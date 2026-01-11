@@ -3,6 +3,12 @@ import {
   jsonParserTool,
   codeExecutorTool,
   soma,
+  subtracao,
+  multiplicacao,
+  divisao,
+  converterTemperatura,
+  formatarData,
+  converterDistancia,
 } from "../../lib/tools/agent-tools.js";
 
 export const toolMap = {
@@ -10,4 +16,10 @@ export const toolMap = {
   json_parser: jsonParserTool,
   code_executor: codeExecutorTool,
   soma,
+  subtracao,
+  multiplicacao,
+  divisao,
+  converter_temperatura: converterTemperatura,
+  formatar_data: formatarData,
+  converter_distancia: converterDistancia,
 };
