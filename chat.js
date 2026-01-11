@@ -1,157 +1,158 @@
-import { createOpencode } from "./sdk/index.js";
+import { agentSystem } from "./modules/index.js";
 import { createOllamaClient } from "./lib/ollama/index.js";
-import dotenv from "dotenv";
 
-dotenv.config();
+export const agents = agentSystem.agents;
+export const tools = agentSystem.tools;
+export const agentConfig = agentSystem.config;
 
-// Gerenciador OpenCode SDK
-class OpenCodeManager {
-  constructor() {
-    this.initialized = false;
-    this.sdkPort = process.env.SDK_PORT || 4096;
-    this.opencode = null;
-    this.client = null;
-    this.ollamaClient = null;
-    this.models = [
-      { providerID: "opencode", modelID: "minimax-m2.1-free" },
-      { providerID: "opencode", modelID: "glm-4.7-free" },
-      { providerID: "openrouter", modelID: "kwaipilot/kat-coder-pro:free" },
-      { providerID: "openrouter", modelID: "google/gemini-2.0-flash-exp:free" },
-      { providerID: "openrouter", modelID: "qwen/qwen3-coder:free" },
-      { providerID: "openrouter", modelID: "mistralai/devstral-2512:free" },
-      { providerID: "openrouter", modelID: "meta-llama/llama-3.3-70b-instruct:free" },
-      { providerID: "openrouter", modelID: "mistralai/devstral-small-2507" },
-      { providerID: "openrouter", modelID: "z-ai/glm-4.5-air:free" },
-      { providerID: "zenmux", modelID: "xiaomi/mimo-v2-flash-free" },
-      { providerID: "zenmux", modelID: "z-ai/glm-4.6v-flash-free" },
-      { providerID: "zenmux", modelID: "kuaishou/kat-coder-pro-v1-free" },
-    ];
+export const ollamaClient = createOllamaClient({
+  baseUrl: process.env.OLLAMA_URL || "http://localhost:11434",
+  models: agentSystem?.config?.sdk?.ollamaModels || [
+    "llama3.2",
+    "qwen2.5-coder",
+    "deepseek-coder-v2",
+  ],
+});
+
+export function buildLocalSummary(agentKey, agentResult) {
+  if (!agentKey || !agentResult) {
+    return JSON.stringify(agentResult ?? {}, null, 2);
   }
 
-  async create() {
-    // Inicializar OpenCode SDK
-    this.opencode = await createOpencode({
-      hostname: "127.0.0.1",
-      port: this.sdkPort,
-    });
-    this.client = this.opencode.client;
+  const formatters = {
+    code: () => {
+      const syntax = agentResult.checks?.syntax;
+      const deps = agentResult.checks?.dependencies;
+      const style = agentResult.checks?.style;
+      return [
+        "Resumo do CodeAnalyzer:",
+        syntax
+          ? syntax.valid
+            ? "- Sintaxe aprovada"
+            : `- Sintaxe com ${syntax.errors?.length || 0} problema(s)`
+          : null,
+        style
+          ? style.formatted
+            ? "- Estilo dentro do padrão"
+            : `- ${style.warnings?.length || 0} aviso(s) de estilo`
+          : null,
+        deps ? `- ${deps.count || 0} dependência(s) detectadas` : null,
+      ]
+        .filter(Boolean)
+        .join("\n");
+    },
+    data: () => {
+      const validation = agentResult.steps?.validation;
+      const transform = agentResult.steps?.transformation;
+      const aggregation = agentResult.steps?.aggregation;
+      return [
+        "Resumo do DataProcessor:",
+        validation
+          ? validation.valid
+            ? "- Dados aprovados na validação"
+            : `- Dados inválidos (${validation.errors?.join(", ") || "motivo desconhecido"})`
+          : null,
+        transform ? `- Transformação aplicada (${transform.transformType || "custom"})` : null,
+        aggregation ? `- ${aggregation.count || 0} itens agregados` : null,
+      ]
+        .filter(Boolean)
+        .join("\n");
+    },
+    task: () => {
+      const execution = agentResult.results?.execution;
+      const report = agentResult.results?.report;
+      return [
+        "Resumo do TaskManager:",
+        execution
+          ? `- ${execution.successful || 0}/${execution.total || 0} tarefas concluídas`
+          : null,
+        report?.summary?.successRate ? `- Sucesso geral: ${report.summary.successRate}` : null,
+      ]
+        .filter(Boolean)
+        .join("\n");
+    },
+  };
 
-    // Inicializar Ollama Client
-    this.ollamaClient = createOllamaClient({
-      baseUrl: process.env.OLLAMA_URL || "http://localhost:11434",
-      models: ["llama3.2", "qwen2.5-coder", "deepseek-coder-v2"],
-    });
-  }
+  return formatters[agentKey]?.() || JSON.stringify(agentResult, null, 2);
 }
 
-class OpencodeCliente extends OpenCodeManager {
-  constructor() {
-    super();
-    this.sessionId = null;
-  }
+export async function summarizeWithFallback(prompt, agentResult, agentLabel = "Agente") {
+  const message = prompt || "Explique passo a passo o que o agente executou.";
+  const attempts = [];
+  const agentKey = Object.entries(agentSystem.agents || {}).find(
+    ([, entry]) => entry.label === agentLabel,
+  )?.[0];
+  const localSummary = agentResult && agentKey ? buildLocalSummary(agentKey, agentResult) : null;
 
-  async createSession(title = "Chat Session", cliente) {
-    console.log("Criando sessão...");
-    const sessionRes = await cliente.session.create({
-      body: { title: title },
-    });
-    this.sessionId = sessionRes?.data?.id ?? sessionRes?.id ?? null;
-    if (this.sessionId) {
-      console.log(`🧩 Session criada: ${this.sessionId}`);
-    }
-  }
-
-  async createMessage(session, providerID, modelID, parts, number = 0) {
+  if (agentSystem?.sdk?.summarize) {
     try {
-      var model =
-        number > 0
-          ? this.models[number]
-          : { providerID: providerID, modelID: modelID };
-      console.log(model);
-      var result = await session.session.prompt({
-        path: { id: this.sessionId },
-        body: {
-          model: model,
-          parts: parts,
-        },
+      const remote = await agentSystem.sdk.summarize(message, {
+        agentLabel,
+        agentKey,
+        agentResult,
+        localSummary,
       });
-      if (
-        result?.error ||
-        result?.data?.error ||
-        result.data === null ||
-        Reflect.ownKeys(result.data).length === 0
-      ) {
-        console.log("Erro ao gerar resposta, tentando próximo modelo...");
-        throw new Error(result.error.message || "Erro desconhecido");
+      if (remote?.success && remote.summary) {
+        return remote;
       }
-      return result;
+      if (remote?.attempts?.length) {
+        attempts.push(...remote.attempts);
+      }
     } catch (error) {
-      try {
-        if (number < this.models.length) {
-          return await this.createMessage(
-            session,
-            null,
-            null,
-            parts,
-            number + 1
-          );
-        }
-
-        // IMPLEMENTAÇÃO OLLAMA - Fallback final
-        console.log("🦙 Todos os modelos remotos falharam. Tentando Ollama...");
-
-        const prompt = parts
-          .filter((p) => p.type === "text")
-          .map((p) => p.text)
-          .join("\n");
-
-        const ollamaResponse = await this.ollamaClient.generateWithFallback(prompt, {
-          temperature: 0.7,
-        });
-
-        if (ollamaResponse.success) {
-          console.log(`✅ Ollama respondeu com sucesso usando ${ollamaResponse.model}`);
-          return {
-            data: {
-              content: ollamaResponse.response,
-              model: ollamaResponse.model,
-              source: "ollama",
-            },
-          };
-        }
-
-        console.log("❌ Ollama também falhou:", ollamaResponse.error);
-        return { error: "Todos os modelos falharam (remotos + Ollama)" };
-      } catch (error) {
-        console.log(error);
-        return { error: error.message };
-      }
+      attempts.push({ source: "remote", error: error.message });
     }
   }
 
-  async shutdown() {
-    if (!this.opencode) return;
+  if (localSummary) {
+    return {
+      source: "local",
+      summary: localSummary,
+      attempts,
+      model: null,
+    };
+  }
 
+  if (agentSystem?.agents?.code) {
     try {
-      await this.opencode.server.close();
-      console.log(`🛑 OpenCode SDK encerrado`);
+      const result = await agentSystem.agents.code.instance.execute({
+        code: message,
+        checkSyntax: true,
+        checkStyle: true,
+        checkDeps: true,
+      });
+      return {
+        source: "local",
+        summary: JSON.stringify(result, null, 2),
+        attempts,
+        model: null,
+      };
     } catch (error) {
-      console.warn(`Erro ao encerrar OpenCode SDK: ${error}`);
+      attempts.push({ source: "local", error: error.message });
     }
   }
-}
 
-async function init() {
-  var client = await new OpencodeCliente();
-  await client.create();
-  await client.createSession("Teste de Chat", client.client);
-  var mensagem = await client
-    .createMessage(client.client, "opencode", "glm-4.7-free", [
-      { type: "text", text: "Escreva um poema sobre inteligência artificial." },
-    ])
-    .then((response) => {
-      console.log("Resposta:", response);
-      client.shutdown();
-    });
+  if (!ollamaClient) {
+    throw new Error("Ollama client não inicializado");
+  }
+
+  const availability = await ollamaClient.isAvailable().catch(() => false);
+  if (!availability) {
+    throw new Error("Todos os modelos remotos falharam e Ollama está indisponível");
+  }
+
+  const fallback = await ollamaClient.generateWithFallback(message, {
+    temperature: 0.7,
+  });
+  if (!fallback.success) {
+    throw new Error(
+      fallback.error || "Todos os modelos remotos falharam e fallback Ollama falhou",
+    );
+  }
+
+  return {
+    source: fallback.source,
+    model: fallback.model,
+    summary: fallback.response,
+    attempts: [...attempts, ...(fallback.attempts || [])],
+  };
 }
-init();

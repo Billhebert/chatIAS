@@ -16,11 +16,13 @@ Este documento descreve como usar o ChatIAS em **ambiente de produção**.
 node --version  # v18.0.0 ou superior
 ```
 
-2. **OpenCode CLI**
+2. **OpenCode CLI + SDK sempre ativo**
 ```bash
 npm install -g @opencode-ai/cli
 opencode --version
+opencode serve --port 4096 & # mantenha o servidor rodando
 ```
+
 
 3. **Dependências do projeto**
 ```bash
@@ -47,10 +49,15 @@ ollama pull deepseek-coder-v2
 Crie arquivo `.env`:
 
 ```env
-# OpenCode SDK (obrigatório)
+# OpenCode SDK (obrigatório e sempre ativo)
+SDK_HOSTNAME=127.0.0.1
 SDK_PORT=4096
+SDK_AUTO_CONNECT=true
+SDK_STARTUP_TIMEOUT=20000
+SDK_RETRY_DELAY=5000
 
 # Ollama (opcional - apenas para fallback)
+
 OLLAMA_URL=http://localhost:11434
 
 # API Keys (se necessário para providers)
@@ -84,12 +91,16 @@ node chat.js
 ```
 
 **Este é o modo principal de produção**. Inclui:
-- ✅ 12 modelos remotos
+- ✅ 12 modelos remotos via OpenCode SDK (auto-connect obrigatório)
 - ✅ 3 modelos Ollama (fallback)
 - ✅ Sistema modular completo
-- ✅ Todas as funcionalidades
+- ✅ Todas as funcionalidades do painel e console
+
+
+> ⚠️ Sempre mantenha o OpenCode SDK rodando antes de iniciar o servidor Express (`node server.js`).
 
 ### Modo 2: Como Módulo
+
 
 ```javascript
 import { ProductionChatClient } from "./production-example.js";

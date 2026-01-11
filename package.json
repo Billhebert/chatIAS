@@ -19,12 +19,14 @@
   },
   "homepage": "https://github.com/Billhebert/chatIAS#readme",
   "dependencies": {
-    "@opencode-ai/sdk": "^1.1.8",
-    "dotenv": "^17.2.3",
     "@hey-api/openapi-ts": "0.88.1",
+    "@opencode-ai/sdk": "^1.1.8",
     "@tsconfig/node22": "22.0.2",
     "@types/node": "22.13.9",
-    "typescript": "5.8.2",
-    "@typescript/native-preview": "7.0.0-dev.20251207.1"
+    "@typescript/native-preview": "7.0.0-dev.20251207.1",
+    "cors": "^2.8.5",
+    "dotenv": "^17.2.3",
+    "express": "^5.2.1",
+    "typescript": "5.8.2"
   }
 }

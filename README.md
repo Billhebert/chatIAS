@@ -1,6 +1,7 @@
 # ChatIAS
 
-Sistema de chat inteligente com múltiplos modelos de IA e fallback Ollama, usando 100% do OpenCode SDK com arquitetura modular.
+Sistema de chat inteligente com múltiplos modelos de IA e fallback Ollama, usando 100% do OpenCode SDK com arquitetura modular. **O OpenCode SDK permanece sempre ativo (auto-connect + reconexão contínua)** para garantir que os modelos remotos estejam prontos para atender as requisições do painel e da console em tempo real.
+
 
 ## 🚀 Características
 
@@ -26,8 +27,9 @@ npm install
 
 # Configurar variáveis de ambiente
 cp .env.example .env
-# Edite .env e configure SDK_PORT (padrão: 4096)
+# Edite .env e configure SDK_HOSTNAME/SDK_PORT/SDK_AUTO_CONNECT
 ```
+
 
 ## 🦙 Configurar Ollama (Opcional mas Recomendado)
 
@@ -58,8 +60,9 @@ node chat.js
 ```
 
 **Requisitos**:
-- ✅ OpenCode CLI instalado e rodando
+- ✅ OpenCode CLI instalado e servidor SDK ativo (auto-connect habilitado)
 - ✅ Ollama instalado (opcional, apenas para fallback)
+
 
 **Funcionalidades**:
 - ✅ 12 modelos remotos (OpenCode, OpenRouter, Zenmux)
@@ -81,7 +84,8 @@ node examples/demo-modular-system.js
 node chat-standalone.js
 ```
 
-**Nota**: Estes arquivos são apenas para **desenvolvimento e testes**, não para produção.
+> ⚠️ A experiência completa do painel requer o OpenCode SDK sempre ativo. Use os scripts acima apenas para validar componentes isolados.
+
 
 ### Integração
 
@@ -323,8 +327,12 @@ Conteúdo da skill aqui...
 Crie um arquivo `.env`:
 
 ```env
-# OpenCode SDK
+# OpenCode SDK (sempre ativo)
+SDK_HOSTNAME=127.0.0.1
 SDK_PORT=4096
+SDK_AUTO_CONNECT=true
+SDK_STARTUP_TIMEOUT=20000
+SDK_RETRY_DELAY=5000
 
 # Ollama (opcional)
 OLLAMA_URL=http://localhost:11434
@@ -332,6 +340,7 @@ OLLAMA_URL=http://localhost:11434
 # API Keys (se necessário)
 OPENROUTER_API_KEY=sk-or-v1-...
 ```
+
 
 ## 🧪 Testes
 
@@ -351,6 +360,8 @@ curl http://localhost:11434/api/tags
 - [MCP Servers](https://opencode.ai/docs/mcp-servers/)
 - [Skills](https://opencode.ai/docs/skills/)
 - [Ollama](https://ollama.ai/)
+- [TROUBLESHOOTING.md](TROUBLESHOOTING.md) - Solução de problemas e uso sem SDK
+
 
 ## 🤝 Contribuindo
 
