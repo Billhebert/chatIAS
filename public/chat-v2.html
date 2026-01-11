@@ -88,6 +88,8 @@
       grid-template-columns: 1fr 380px;
       gap: 0;
       overflow: hidden;
+      height: 0;
+      min-height: 0;
     }
 
     /* Chat Area */
@@ -279,11 +281,14 @@
       overflow: hidden;
       display: flex;
       flex-direction: column;
+      height: 100%;
+      max-height: 95vh;
     }
 
     .sidebar-header {
       padding: 1.5rem;
       border-bottom: 1px solid var(--bg-tertiary);
+      flex-shrink: 0;
     }
 
     .sidebar-header h2 {
@@ -715,48 +720,6 @@
       }
     }
 
-      try {
-        eventSource = new EventSource(`${API_BASE}/api/logs/stream`);
-
-        eventSource.onopen = () => {
-          console.log('SSE conectado');
-        };
-
-        eventSource.onmessage = (event) => {
-          try {
-            const data = JSON.parse(event.data);
-            
-            // Ignore heartbeats
-            if (data.type === 'heartbeat') return;
-            
-            // Only add logs (not chat messages)
-            if (data.type === 'log') {
-              addLogEntry({
-                timestamp: data.log?.timestamp || new Date().toISOString(),
-                message: data.log?.message || 'Sem mensagem',
-                icon: mapCategoryToIcon(data.log?.category, data.log?.level),
-                source: data.log?.category || 'system',
-                requestId: data.log?.requestId
-              });
-            }
-          } catch (e) {
-            console.error('Erro ao processar log SSE:', e);
-          }
-        };
-
-        eventSource.onerror = () => {
-          console.log('SSE desconectado, reconectando em 5s...');
-          setTimeout(() => {
-            if (!eventSource || eventSource.readyState === EventSource.CLOSED) {
-              connectSSE();
-            }
-          }, 5000);
-        };
-      } catch (e) {
-        console.error('Erro ao conectar SSE:', e);
-      }
-    }
-
     // Map category to icon
     function mapCategoryToIcon(category, level) {
       if (level === 'error') return 'error';
@@ -923,24 +886,18 @@
       trimLogs();
     }
 
-    // Trim logs to max limit - otimizado para não travar
+    // Trim logs to max limit - remove logs antigos
     function trimLogs() {
       const logs = logsListEl.querySelectorAll('.log-entry');
       const excessLogs = logs.length - maxLogs;
       
       if (excessLogs > 0) {
-        // Remove logs em batch usando DocumentFragment
-        requestAnimationFrame(() => {
-          const fragment = document.createDocumentFragment();
-          
-          for (let i = 0; i < excessLogs; i++) {
-            if (logs[i]) {
-              fragment.appendChild(logs[i]);
-            }
+        // Remove os logs mais antigos (do início)
+        for (let i = 0; i < excessLogs; i++) {
+          if (logs[i] && logs[i].parentNode) {
+            logs[i].remove();
           }
-          
-          logsListEl.insertBefore(fragment, logsListEl.firstChild);
-        });
+        }
       }
     }
 
@@ -975,6 +932,9 @@
       const message = messageInput.value.trim();
       if (!message || isProcessing) return;
 
+      console.log('[Frontend] Enviando mensagem:', message);
+      console.log('[Frontend] Agent:', agentSelect.value);
+
       isProcessing = true;
       messageInput.disabled = true;
       sendBtn.disabled = true;
@@ -983,6 +943,7 @@
       addLoadingMessage();
 
       try {
+        console.log('[Frontend] Fazendo fetch para /api/chat');
         const res = await fetch(`${API_BASE}/api/chat`, {
           method: 'POST',
           headers: {
@@ -994,7 +955,10 @@
           })
         });
 
+        console.log('[Frontend] Response status:', res.status);
+        
         const data = await res.json();
+        console.log('[Frontend] Response data:', data);
 
         removeLoadingMessage();
 
@@ -1010,6 +974,7 @@
           addMessage('assistant', `❌ Erro: ${data.error}`);
         }
       } catch (error) {
+        console.error('[Frontend] Erro no fetch:', error);
         removeLoadingMessage();
         addMessage('assistant', `❌ Erro ao conectar: ${error.message}`);
       } finally {

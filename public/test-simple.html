@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Teste JavaScript Básico</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            background: #f0f0f0;
+        }
+        .test-box {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 10px 0;
+        }
+        button {
+            padding: 10px 20px;
+            font-size: 16px;
+            cursor: pointer;
+            background: #007bff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            margin: 5px;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        #log {
+            background: #000;
+            color: #0f0;
+            padding: 10px;
+            font-family: monospace;
+            height: 200px;
+            overflow-y: auto;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <h1>🧪 Teste JavaScript Básico</h1>
+    
+    <div class="test-box">
+        <h2>Teste 1: Alert Imediato</h2>
+        <p>Se você viu um alert ao carregar a página, o JavaScript básico funciona.</p>
+    </div>
+    
+    <div class="test-box">
+        <h2>Teste 2: Click em Botão</h2>
+        <button id="btn1">Clique Aqui (Método 1)</button>
+        <button id="btn2">Clique Aqui (Método 2)</button>
+        <button id="btn3">Clique Aqui (Método 3)</button>
+    </div>
+    
+    <div class="test-box">
+        <h2>Teste 3: Input + Enter</h2>
+        <input type="text" id="testInput" placeholder="Digite e pressione Enter" style="padding: 8px; width: 300px;">
+    </div>
+    
+    <div class="test-box">
+        <h2>Console de Log</h2>
+        <div id="log"></div>
+    </div>
+
+    <script>
+        // Log helper
+        function log(msg) {
+            console.log(msg);
+            const logDiv = document.getElementById('log');
+            if (logDiv) {
+                logDiv.innerHTML += msg + '<br>';
+                logDiv.scrollTop = logDiv.scrollHeight;
+            }
+        }
+
+        // TESTE IMEDIATO - roda assim que o script carrega
+        log('✅ Script carregado!');
+        alert('✅ JavaScript está funcionando! Clique OK para continuar os testes.');
+        log('✅ Alert funcionou!');
+
+        // TESTE 1: addEventListener com DOMContentLoaded
+        document.addEventListener('DOMContentLoaded', () => {
+            log('✅ DOMContentLoaded disparado!');
+            
+            const btn1 = document.getElementById('btn1');
+            const btn2 = document.getElementById('btn2');
+            const btn3 = document.getElementById('btn3');
+            const input = document.getElementById('testInput');
+            
+            if (btn1) {
+                log('✅ btn1 encontrado');
+                btn1.addEventListener('click', () => {
+                    log('🎉 BTN1 CLICADO (addEventListener)!');
+                    alert('Botão 1 funcionou!');
+                });
+            } else {
+                log('❌ btn1 NÃO encontrado!');
+            }
+            
+            if (btn2) {
+                log('✅ btn2 encontrado');
+                btn2.onclick = function() {
+                    log('🎉 BTN2 CLICADO (onclick)!');
+                    alert('Botão 2 funcionou!');
+                };
+            } else {
+                log('❌ btn2 NÃO encontrado!');
+            }
+            
+            if (btn3) {
+                log('✅ btn3 encontrado');
+                // Método inline será definido depois
+            } else {
+                log('❌ btn3 NÃO encontrado!');
+            }
+            
+            if (input) {
+                log('✅ input encontrado');
+                input.addEventListener('keypress', (e) => {
+                    log('🔑 Tecla pressionada: ' + e.key);
+                    if (e.key === 'Enter') {
+                        log('🎉 ENTER PRESSIONADO!');
+                        alert('Enter funcionou! Valor: ' + input.value);
+                    }
+                });
+            } else {
+                log('❌ input NÃO encontrado!');
+            }
+        });
+
+        // TESTE 2: Função global para onclick inline
+        function testBtn3() {
+            log('🎉 BTN3 CLICADO (onclick inline no HTML)!');
+            alert('Botão 3 funcionou!');
+        }
+        
+        // Adicionar onclick inline ao btn3 via JavaScript
+        setTimeout(() => {
+            const btn3 = document.getElementById('btn3');
+            if (btn3) {
+                btn3.setAttribute('onclick', 'testBtn3()');
+                log('✅ onclick inline adicionado ao btn3');
+            }
+        }, 100);
+
+        log('✅ Script terminou de executar!');
+    </script>
+</body>
+</html>

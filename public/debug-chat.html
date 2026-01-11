@@ -1,0 +1,425 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ChatIAS - Debug Mode</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { 
+      font-family: monospace;
+      background: #1a1a2e;
+      color: #eee;
+      padding: 20px;
+    }
+    .status {
+      background: #16213e;
+      padding: 15px;
+      border-radius: 8px;
+      margin-bottom: 20px;
+    }
+    .status-item { margin: 5px 0; }
+    input[type="text"] {
+      width: 100%;
+      background: #0f3460;
+      color: #eee;
+      border: 1px solid #333;
+      padding: 10px;
+      font-family: inherit;
+      margin-bottom: 10px;
+    }
+    button {
+      background: #e94560;
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      cursor: pointer;
+      font-family: inherit;
+    }
+    button:hover { background: #f05050; }
+    button:disabled { opacity: 0.5; cursor: not-allowed; }
+    #messages {
+      background: #16213e;
+      padding: 15px;
+      border-radius: 8px;
+      min-height: 200px;
+      margin-bottom: 20px;
+    }
+    .message { margin: 10px 0; padding: 10px; background: #0f3460; border-radius: 4px; }
+    .message.user { border-left: 3px solid #4ade80; }
+    .message.assistant { border-left: 3px solid #60a5fa; }
+    .loading { color: #fbbf24; }
+    .error { color: #ef4444; }
+    .success { color: #4ade80; }
+  </style>
+</head>
+<body>
+  <div class="status">
+    <div class="status-item">🔴 DOM Ready: <span id="domReady">Aguarde...</span></div>
+    <div class="status-item">🔴 API_BASE: <span id="apiBase">Aguarde...</span></div>
+    <div class="status-item">🔴 Event Source: <span id="eventSourceStatus">Desconectado</span></div>
+  </div>
+
+  <input type="text" id="messageInput" placeholder="Digite sua mensagem..." />
+  <button id="sendBtn">Enviar (Enter)</button>
+
+  <div id="messages">
+    <div class="loading">Aguardando primeira mensagem...</div>
+  </div>
+
+  <script>
+    // Status
+    document.getElementById('domReady').textContent = '✅ Sim';
+    document.getElementById('apiBase').textContent = window.location.origin + '/';
+    
+    let eventSource = null;
+
+    // Event Source
+    function connectSSE() {
+      document.getElementById('eventSourceStatus').textContent = 'Conectando...';
+      
+      try {
+        eventSource = new EventSource('/api/logs/stream');
+        
+        eventSource.onopen = () => {
+          document.getElementById('eventSourceStatus').textContent = '✅ Conectado';
+          console.log('[SSE] Conectado');
+        };
+        
+        eventSource.onmessage = (event) => {
+          const data = JSON.parse(event.data);
+          console.log('[SSE] Mensagem:', data);
+          
+          if (data.type === 'log') {
+            const time = new Date(data.log.timestamp).toLocaleTimeString();
+            const msg = `[${time}] [${data.log.category}] ${data.log.message}`;
+            addMessage('system', msg);
+          }
+        };
+        
+        eventSource.onerror = () => {
+          document.getElementById('eventSourceStatus').textContent = '❌ Erro';
+          console.error('[SSE] Erro de conexão');
+        };
+      } catch (e) {
+        document.getElementById('eventSourceStatus').textContent = '❌ Exceção';
+        console.error('[SSE] Exceção:', e);
+      }
+    }
+
+    function addMessage(type, text) {
+      const messages = document.getElementById('messages');
+      const msg = document.createElement('div');
+      msg.className = `message ${type}`;
+      msg.textContent = text;
+      messages.appendChild(msg);
+    }
+
+    function removeLoading() {
+      const loading = document.querySelector('.loading');
+      if (loading) loading.remove();
+    }
+
+    // Enviar mensagem - SEM async/await
+    function sendMessage() {
+      const input = document.getElementById('messageInput');
+      const btn = document.getElementById('sendBtn');
+      
+      if (!input || !btn) {
+        console.error('[SEND] Elementos não encontrados!');
+        return;
+      }
+      
+      const message = input.value.trim();
+      console.log('[SEND] Mensagem:', message);
+      
+      if (!message) {
+        console.log('[SEND] Mensagem vazia, ignorando');
+        return;
+      }
+
+      btn.disabled = true;
+      input.disabled = true;
+      btn.textContent = 'Enviando...';
+
+      addMessage('user', message);
+      addLoadingMessage();
+
+      console.log('[SEND] Iniciando fetch POST /api/chat');
+      
+      fetch('/api/chat', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            message: message
+          })
+        })
+        .then(res => {
+          console.log('[SEND] Resposta recebida, status:', res.status);
+          return res.json();
+        })
+        .then(data => {
+          console.log('[SEND] Data processada:', data);
+          
+          removeLoadingMessage();
+          btn.disabled = false;
+          input.disabled = false;
+          btn.textContent = 'Enviar (Enter)';
+          input.value = '';
+          input.focus();
+
+          if (data.success) {
+            console.log('[SEND] ✅ SUCESSO!');
+            addMessage('assistant', data.response, {
+              agent: data.usedAgent,
+              intent: data.intent,
+              duration: data.duration
+            });
+          } else {
+            console.log('[SEND] ❌ ERRO:', data.error);
+            addMessage('assistant', `❌ ${data.error}`);
+          }
+        })
+        .catch(error => {
+          console.error('[SEND] ❌ ERRO FETCH:', error);
+          removeLoadingMessage();
+          btn.disabled = false;
+          input.disabled = false;
+          btn.textContent = 'Enviar (Enter)';
+          addMessage('assistant', `❌ Erro: ${error.message}`);
+        });
+    }
+      
+      const message = input.value.trim();
+      console.log('[ENVIAR] Mensagem:', message);
+      console.log('[ENVIAR] Tamanho:', message.length);
+      
+      if (!message) {
+        console.log('[ENVIAR] Mensagem vazia, ignorando');
+        
+      }
+
+      console.log('[ENVIAR] Habilitando botões...');
+      btn.disabled = true;
+      input.disabled = true;
+      btn.textContent = 'Enviando...';
+
+      addMessage('user', message);
+      addLoadingMessage();
+
+      console.log('[ENVIAR] Fazendo fetch...');
+
+      fetch('/api/chat', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            message: message
+          })
+        })
+        .then(res => {
+          console.log('[ENVIAR] Response status:', res.status);
+          console.log('[ENVIAR] Response ok:', res.ok);
+          
+          removeLoadingMessage();
+          btn.disabled = false;
+          input.disabled = false;
+          btn.textContent = 'Enviar (Enter)';
+          input.value = '';
+          input.focus();
+
+          return res.json();
+        })
+        .then(data => {
+          console.log('[ENVIAR] ✅ SUCESSO!');
+          console.log('[ENVIAR] Data:', data);
+          
+          if (data.success) {
+            addMessage('assistant', data.response);
+          } else {
+            addMessage('assistant', `❌ Erro: ${data.error}`);
+          }
+        })
+        .catch(error => {
+          console.error('[ENVIAR] ❌ ERRO:', error);
+          
+          removeLoadingMessage();
+          btn.disabled = false;
+          input.disabled = false;
+          btn.textContent = 'Enviar (Enter)';
+          addMessage('assistant', `❌ Erro: ${error.message}`);
+        });
+    }
+      
+      if (!btn) {
+        console.error('[ENVIAR] ❌ btn não encontrado!');
+        return;
+      }
+      
+      console.log('[ENVIAR] Elementos encontrados:', { input: !!input, btn: !!btn });
+      
+      const message = input.value.trim();
+      console.log('[ENVIAR] Mensagem:', message);
+      console.log('[ENVIAR] Tamanho:', message.length);
+      console.log('[ENVIAR] Tipo:', typeof message);
+      
+      if (!message) {
+        console.log('[ENVIAR] ❌ Mensagem vazia, ignorando');
+        return;
+      }
+
+      console.log('[ENVIAR] Habilitando botões...');
+      btn.disabled = true;
+      input.disabled = true;
+      btn.textContent = 'Enviando...';
+      addMessage('system', `📤 Enviando: "${message}"`);
+
+      try {
+        console.log('[ENVIAR] Iniciando fetch para /api/chat...');
+        const requestBody = { message: message };
+        console.log('[ENVIAR] Request body:', JSON.stringify(requestBody));
+        
+        const res = await fetch('/api/chat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(requestBody)
+        });
+        
+        console.log('[ENVIAR] ✅ Fetch completado!');
+        console.log('[ENVIAR] Status HTTP:', res.status);
+        console.log('[ENVIAR] Status text:', res.statusText);
+        console.log('[ENVIAR] Headers:', [...res.headers.entries()]);
+        
+        const data = await res.json();
+        console.log('[ENVIAR] ✅ JSON parse completado!');
+        console.log('[ENVIAR] Response:', data);
+
+        removeLoading();
+        btn.disabled = false;
+        input.disabled = false;
+        btn.textContent = 'Enviar (Enter)';
+        input.value = '';
+        input.focus();
+
+        if (data.success) {
+          console.log('[ENVIAR] ✅✅✅ SUCESSO!');
+          addMessage('assistant', `📥 ${data.response}`);
+          if (data.provider) console.log('[ENVIAR] Provider:', data.provider);
+          if (data.duration) console.log('[ENVIAR] Duration:', data.duration + 'ms');
+        } else {
+          console.log('[ENVIAR] ❌❌❌ ERRO NA RESPOSTA!');
+          console.log('[ENVIAR] data.success:', data.success);
+          console.log('[ENVIAR] data.error:', data.error);
+          addMessage('assistant', `❌ ${data.error || 'Erro desconhecido'}`);
+        }
+      } catch (e) {
+        console.error('[ENVIAR] ❌❌❌ EXCEÇÃO:', e);
+        console.error('[ENVIAR] Stack:', e.stack);
+        
+        removeLoading();
+        btn.disabled = false;
+        input.disabled = false;
+        btn.textContent = 'Enviar (Enter)';
+        addMessage('error', `❌ ${e.message}`);
+      }
+      
+      console.log('===== [ENVIAR] FUNÇÃO FINALIZADA =====');
+    }
+
+      btn.disabled = true;
+      input.disabled = true;
+      btn.textContent = 'Enviando...';
+      addMessage('system', `📤 Enviando: "${message}"`);
+
+      try {
+        console.log('[ENVIAR] Iniciando fetch...');
+        const res = await fetch('/api/chat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ message: message })
+        });
+        
+        console.log('[ENVIAR] Status HTTP:', res.status);
+        console.log('[ENVIAR] Headers:', [...res.headers.entries()]);
+        
+        const data = await res.json();
+        console.log('[ENVIAR] Response:', data);
+        
+        removeLoading();
+        btn.disabled = false;
+        input.disabled = false;
+        btn.textContent = 'Enviar (Enter)';
+        input.value = '';
+        input.focus();
+
+        if (data.success) {
+          console.log('[ENVIAR] ✅ Sucesso!');
+          addMessage('assistant', `📥 ${data.response}`);
+          if (data.provider) console.log('[ENVIAR] Provider:', data.provider);
+        } else {
+          console.log('[ENVIAR] ❌ Erro!');
+          addMessage('assistant', `❌ ${data.error || 'Erro desconhecido'}`);
+        }
+      } catch (e) {
+        console.error('[ENVIAR] ❌ Exceção:', e);
+        removeLoading();
+        btn.disabled = false;
+        input.disabled = false;
+        btn.textContent = 'Enviar (Enter)';
+        addMessage('error', `❌ Erro: ${e.message}`);
+      }
+    }
+
+    // Event listeners - aguarda DOM estar pronto
+    document.addEventListener('DOMContentLoaded', () => {
+      console.log('[DOM] Documento carregado, configurando eventos...');
+      
+      const sendBtn = document.getElementById('sendBtn');
+      const msgInput = document.getElementById('messageInput');
+      
+      if (!sendBtn) {
+        console.error('[DOM] ❌ sendBtn não encontrado!');
+        console.error('[DOM] IDs disponíveis:', Array.from(document.querySelectorAll('[id]')).map(el => el.id));
+      } else {
+        console.log('[DOM] ✅ sendBtn encontrado');
+        console.log('[DOM] Configurando evento de clique...');
+        
+        sendBtn.addEventListener('click', (e) => {
+          console.log('[CLIQUE] Botão clicado!', e);
+          e.preventDefault();
+          sendMessage();
+        });
+        console.log('[DOM] ✅ Evento de clique configurado');
+      }
+      
+      if (!msgInput) {
+        console.error('[DOM] ❌ messageInput não encontrado!');
+      } else {
+        console.log('[DOM] ✅ messageInput encontrado');
+        console.log('[DOM] Configurando evento keypress...');
+        
+        msgInput.addEventListener('keypress', (e) => {
+          console.log('[KEY] Tecla pressionada:', e.key);
+          if (e.key === 'Enter') {
+            console.log('[KEY] Enter detectado, enviando...');
+            e.preventDefault();
+            sendMessage();
+          }
+        });
+        console.log('[DOM] ✅ Evento keypress configurado');
+      }
+    });
+
+    // Também aguarda window.load
+    window.addEventListener('load', () => {
+      console.log('[LOAD] Window carregado!');
+      connectSSE();
+    });
+
+    connectSSE();
+  </script>
+</body>
+</html>

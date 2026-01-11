@@ -412,6 +412,13 @@ app.get("/api/tools", (req, res) => {
 });
 
 /**
+ * GET /debug-chat - Interface de debug
+ */
+app.get("/debug-chat", (req, res) => {
+  res.sendFile(path.join(__dirname, "public", "debug-chat.html"));
+});
+
+/**
  * GET /api/logs
  */
 app.get("/api/logs", (req, res) => {
@@ -476,6 +483,13 @@ app.get("/api/logs/stream", (req, res) => {
  */
 app.get("/chat-v2", (req, res) => {
   res.sendFile(path.join(__dirname, "public", "chat-v2.html"));
+});
+
+/**
+ * GET /debug-chat - Para debugar problemas do frontend
+ */
+app.get("/debug-chat", (req, res) => {
+  res.sendFile(path.join(__dirname, "public", "debug-chat.html"));
 });
 
 /**
