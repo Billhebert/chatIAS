@@ -435,20 +435,31 @@ Respond with ONLY the intent type, nothing else.`;
       const suggestedTool = this._findToolById(metadata.suggestedTool);
       
       if (suggestedTool) {
-        logger.info('tool', `Using suggested tool: ${suggestedTool.id}`, null, requestId);
+        logger.info('tool', `✅ Found suggested tool: ${suggestedTool.id}`, null, requestId);
+        logger.info('tool', `🔧 Executing tool: ${suggestedTool.id}`, { name: suggestedTool.name }, requestId);
         try {
           const params = this._extractToolParams(message, metadata.suggestedTool);
+          logger.info('tool', `📥 Tool params extracted:`, params, requestId);
+          
           const result = await suggestedTool.execute(params);
+          
+          logger.success('tool', `✅ Tool executed successfully: ${suggestedTool.id}`, { 
+            success: result.success,
+            hasData: !!result.data 
+          }, requestId);
+          
           return {
             text: JSON.stringify(result, null, 2),
             provider: 'tool',
             usedTool: suggestedTool.id
           };
         } catch (error) {
+          logger.error('tool', `❌ Tool execution failed: ${error.message}`, { stack: error.stack }, requestId);
           logger.error('tool', `Suggested tool failed: ${error.message}, trying fallback`, null, requestId);
         }
       } else {
-        logger.warn('tool', `Suggested tool "${metadata.suggestedTool}" not found`, null, requestId);
+        logger.warn('tool', `⚠️ Suggested tool "${metadata.suggestedTool}" not found in registry`, null, requestId);
+        logger.warn('tool', `Available tools: ${this.toolRegistry ? Array.from(this.toolRegistry.list()).map(t => t.id).join(', ') : 'none'}`, null, requestId);
       }
     }
     
@@ -709,7 +720,32 @@ Respond with ONLY the intent type, nothing else.`;
    */
   _extractToolParams(message, toolId = null) {
     const params = {};
+    const lower = message.toLowerCase();
     
+    // === CONFIRM8 TOOLS ===
+    if (toolId && toolId.startsWith('confirm8_')) {
+      // Detecta a ação baseada em palavras-chave
+      if (lower.includes('listar') || lower.includes('buscar') || lower.includes('list') || 
+          lower.includes('mostrar') || lower.includes('show') || lower.includes('todos') || 
+          lower.includes('all')) {
+        params.action = 'list';
+      } else if (lower.includes('criar') || lower.includes('create') || lower.includes('add') || lower.includes('novo')) {
+        params.action = 'create';
+      } else if (lower.includes('atualizar') || lower.includes('update') || lower.includes('modificar')) {
+        params.action = 'update';
+      } else if (lower.includes('deletar') || lower.includes('delete') || lower.includes('remover')) {
+        params.action = 'delete';
+      } else if (lower.includes('buscar') || lower.includes('get') || lower.includes('ver')) {
+        params.action = 'get';
+      } else {
+        // Default para listagem
+        params.action = 'list';
+      }
+      
+      return params;
+    }
+    
+    // === OUTRAS TOOLS ===
     // Extração básica baseada no tipo de tool
     if (toolId === 'soma') {
       // Extrai números da mensagem

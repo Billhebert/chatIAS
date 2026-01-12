@@ -527,6 +527,189 @@
           "params": ["code"]
         }
       ]
+    },
+
+    "confirm8_auth": {
+      "id": "confirm8_auth",
+      "class": "Confirm8AuthTool",
+      "file": "confirm8-auth.js",
+      "enabled": true,
+      "version": "1.0.0",
+
+      "description": "Authenticação e gestão de sessão com Confirm8 API",
+      "category": "api",
+      "tags": ["confirm8", "auth", "api"],
+
+      "input": {
+        "action": { "type": "string", "required": true }
+      },
+
+      "actions": [
+        {
+          "id": "login",
+          "description": "Autentica usuário no Confirm8",
+          "params": ["username", "password"]
+        },
+        {
+          "id": "logout",
+          "description": "Finaliza sessão do usuário",
+          "params": []
+        },
+        {
+          "id": "getToken",
+          "description": "Retorna informações do token",
+          "params": []
+        },
+        {
+          "id": "getUser",
+          "description": "Retorna dados do usuário autenticado",
+          "params": []
+        },
+        {
+          "id": "isAuthenticated",
+          "description": "Verifica se usuário está autenticado",
+          "params": []
+        }
+      ]
+    },
+
+    "confirm8_users": {
+      "id": "confirm8_users",
+      "class": "Confirm8UsersTool",
+      "file": "confirm8-users.js",
+      "enabled": true,
+      "version": "1.0.0",
+
+      "description": "Gestão completa de usuários no Confirm8",
+      "category": "api",
+      "tags": ["confirm8", "users", "api", "crud"],
+
+      "input": {
+        "action": { "type": "string", "required": true }
+      },
+
+      "actions": [
+        { "id": "create", "description": "Cria novo usuário", "params": ["username", "password", "name"] },
+        { "id": "list", "description": "Lista todos os usuários", "params": [] },
+        { "id": "get", "description": "Busca usuário por ID ou username", "params": ["userId"] },
+        { "id": "update", "description": "Atualiza dados do usuário", "params": ["userId", "data"] },
+        { "id": "activate", "description": "Ativa usuário", "params": ["userId"] },
+        { "id": "deactivate", "description": "Desativa usuário", "params": ["userId"] },
+        { "id": "getTasks", "description": "Lista tarefas do usuário", "params": ["userId"] },
+        { "id": "getTickets", "description": "Lista tickets do usuário", "params": ["userId"] },
+        { "id": "linkTasks", "description": "Vincula tarefas a usuários", "params": ["tasks"] },
+        { "id": "unlinkTasks", "description": "Desvincula tarefas específicas", "params": ["employeeId", "taskIds"] },
+        { "id": "unlinkAllTasks", "description": "Desvincula todas as tarefas", "params": ["employeeId"] },
+        { "id": "getPermissions", "description": "Lista permissões do usuário", "params": ["userId"] },
+        { "id": "uploadPhoto", "description": "Upload de foto do usuário", "params": ["userId", "photo"] },
+        { "id": "uploadSignature", "description": "Upload de assinatura do usuário", "params": ["userId", "signature"] }
+      ]
+    },
+
+    "confirm8_clients": {
+      "id": "confirm8_clients",
+      "class": "Confirm8ClientsTool",
+      "file": "confirm8-clients.js",
+      "enabled": true,
+      "version": "1.0.0",
+
+      "description": "Gestão de clientes no Confirm8",
+      "category": "api",
+      "tags": ["confirm8", "clients", "api", "crud"],
+
+      "input": {
+        "action": { "type": "string", "required": true }
+      },
+
+      "actions": [
+        { "id": "create", "description": "Cria novo cliente", "params": ["name"] },
+        { "id": "list", "description": "Lista todos os clientes", "params": [] },
+        { "id": "get", "description": "Busca cliente por ID", "params": ["clientId"] },
+        { "id": "update", "description": "Atualiza dados do cliente", "params": ["clientId", "data"] },
+        { "id": "activate", "description": "Ativa cliente", "params": ["clientId"] },
+        { "id": "deactivate", "description": "Desativa cliente", "params": ["clientId"] }
+      ]
+    },
+
+    "confirm8_tasks": {
+      "id": "confirm8_tasks",
+      "class": "Confirm8TasksTool",
+      "file": "confirm8-tasks.js",
+      "enabled": true,
+      "version": "1.0.0",
+
+      "description": "Gestão de tarefas no Confirm8",
+      "category": "api",
+      "tags": ["confirm8", "tasks", "api", "crud"],
+
+      "input": {
+        "action": { "type": "string", "required": true }
+      },
+
+      "actions": [
+        { "id": "create", "description": "Cria nova tarefa", "params": ["title", "type"] },
+        { "id": "list", "description": "Lista todas as tarefas", "params": [] },
+        { "id": "get", "description": "Busca tarefa por ID", "params": ["taskId"] },
+        { "id": "update", "description": "Atualiza dados da tarefa", "params": ["taskId", "data"] },
+        { "id": "activate", "description": "Ativa tarefa", "params": ["taskId"] },
+        { "id": "deactivate", "description": "Desativa tarefa", "params": ["taskId"] }
+      ]
+    },
+
+    "confirm8_tickets": {
+      "id": "confirm8_tickets",
+      "class": "Confirm8TicketsTool",
+      "file": "confirm8-tickets.js",
+      "enabled": true,
+      "version": "1.0.0",
+
+      "description": "Gestão de tickets no Confirm8",
+      "category": "api",
+      "tags": ["confirm8", "tickets", "api", "crud"],
+
+      "input": {
+        "action": { "type": "string", "required": true }
+      },
+
+      "actions": [
+        { "id": "create", "description": "Cria novo ticket", "params": ["title"] },
+        { "id": "list", "description": "Lista todos os tickets", "params": [] },
+        { "id": "get", "description": "Busca ticket por ID", "params": ["ticketId"] },
+        { "id": "update", "description": "Atualiza dados do ticket", "params": ["ticketId", "data"] },
+        { "id": "activateBatch", "description": "Ativa múltiplos tickets", "params": ["ticketIds"] },
+        { "id": "deactivateBatch", "description": "Desativa múltiplos tickets", "params": ["ticketIds"] }
+      ]
+    },
+
+    "confirm8_items": {
+      "id": "confirm8_items",
+      "class": "Confirm8ItemsTool",
+      "file": "confirm8-items.js",
+      "enabled": true,
+      "version": "1.0.0",
+
+      "description": "Gestão de items e tipos de items no Confirm8",
+      "category": "api",
+      "tags": ["confirm8", "items", "api", "crud"],
+
+      "input": {
+        "action": { "type": "string", "required": true }
+      },
+
+      "actions": [
+        { "id": "createItem", "description": "Cria novo item", "params": ["name", "itemTypeId"] },
+        { "id": "listItems", "description": "Lista todos os items", "params": [] },
+        { "id": "getItem", "description": "Busca item por ID", "params": ["itemId"] },
+        { "id": "updateItem", "description": "Atualiza dados do item", "params": ["itemId", "data"] },
+        { "id": "activateItem", "description": "Ativa item", "params": ["itemId"] },
+        { "id": "deactivateItem", "description": "Desativa item", "params": ["itemId"] },
+        { "id": "createItemType", "description": "Cria novo tipo de item", "params": ["name"] },
+        { "id": "listItemTypes", "description": "Lista todos os tipos de items", "params": [] },
+        { "id": "getItemType", "description": "Busca tipo de item por ID", "params": ["itemTypeId"] },
+        { "id": "updateItemType", "description": "Atualiza tipo de item", "params": ["itemTypeId", "data"] },
+        { "id": "activateItemType", "description": "Ativa tipo de item", "params": ["itemTypeId"] },
+        { "id": "deactivateItemType", "description": "Desativa tipo de item", "params": ["itemTypeId"] }
+      ]
     }
   },
 

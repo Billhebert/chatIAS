@@ -184,6 +184,36 @@ export class SmartDecisionEngine {
         tool: 'soma',
         keywords: ['soma', 'somar', 'add', 'addition', 'calcular', 'calculate'],
         confidence: 0.9
+      },
+      {
+        tool: 'confirm8_auth',
+        keywords: ['confirm8', 'auth', 'login', 'logout', 'authenticate', 'token', 'autenticar'],
+        confidence: 0.95
+      },
+      {
+        tool: 'confirm8_users',
+        keywords: ['confirm8', 'user', 'usuario', 'users', 'create user', 'list users', 'employee', 'funcionario'],
+        confidence: 0.95
+      },
+      {
+        tool: 'confirm8_clients',
+        keywords: ['confirm8', 'client', 'cliente', 'clients', 'create client', 'list clients'],
+        confidence: 0.95
+      },
+      {
+        tool: 'confirm8_tasks',
+        keywords: ['confirm8', 'task', 'tarefa', 'tasks', 'tarefas', 'create task', 'order', 'checklist'],
+        confidence: 0.95
+      },
+      {
+        tool: 'confirm8_tickets',
+        keywords: ['confirm8', 'ticket', 'tickets', 'create ticket', 'list tickets'],
+        confidence: 0.95
+      },
+      {
+        tool: 'confirm8_items',
+        keywords: ['confirm8', 'item', 'items', 'itemtype', 'create item', 'list items'],
+        confidence: 0.95
       }
     ];
     
