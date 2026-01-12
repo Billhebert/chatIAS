@@ -1,3 +1,32 @@
 {
-  "$schema": "https://opencode.ai/config.json"
+  "$schema": "https://opencode.ai/config.json",
+  "tools": {
+    "code-executor": {
+      "description": "Executa, valida e analisa código JavaScript em sandbox"
+    },
+    "file-reader": {
+      "description": "Lê arquivos do sistema com validações de segurança e extrai dependências"
+    },
+    "json-parser": {
+      "description": "Parse, valida e processa JSON com suporte a comentários e trailing commas"
+    },
+    "confirm8-auth": {
+      "description": "Autentica usuário na API Confirm8 e gerencia tokens JWT"
+    },
+    "confirm8-clients": {
+      "description": "Gerencia clientes na API Confirm8 (CRUD completo)"
+    },
+    "confirm8-items": {
+      "description": "Gerencia itens e tipos de itens na API Confirm8"
+    },
+    "confirm8-tasks": {
+      "description": "Gerencia tarefas e checklists na API Confirm8"
+    },
+    "confirm8-tickets": {
+      "description": "Gerencia tickets/ocorrências na API Confirm8 com operações em lote"
+    },
+    "confirm8-users": {
+      "description": "Gerencia usuários, tarefas, permissões, fotos e assinaturas na API Confirm8"
+    }
+  }
 }
