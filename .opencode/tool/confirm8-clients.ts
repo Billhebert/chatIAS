@@ -106,7 +106,7 @@ export default tool({
           break
         }
         case 'list': {
-          const response = await axios.get(`${baseUrl}/clients`, { headers: getAuthHeaders(), params: filters })
+          const response = await axios.get(`${baseUrl}/clients?offset=0&limit=0&order=asc&relations=wos&relations=items&relations=headquarter&relations=userGroup&relations=properties`, { headers: getAuthHeaders(), params: filters })
           result = { success: true, count: response.data?.length || 0, data: response.data }
           break
         }
@@ -114,7 +114,7 @@ export default tool({
           if (!client_id) {
             return JSON.stringify({ success: false, message: 'client_id é obrigatório' })
           }
-          const response = await axios.get(`${baseUrl}/clients/${client_id}`, { headers: getAuthHeaders() })
+          const response = await axios.get(`${baseUrl}/clients/${client_id}?offset=0&limit=0&order=asc&relations=wos&relations=items&relations=headquarter&relations=userGroup&relations=properties`, { headers: getAuthHeaders() })
           result = { success: true, data: response.data }
           break
         }

@@ -27,6 +27,21 @@
     },
     "confirm8-users": {
       "description": "Gerencia usuários, tarefas, permissões, fotos e assinaturas na API Confirm8"
+    },
+    "confirm8-services": {
+      "description": "Gerencia serviços/levantamentos na API Confirm8"
+    },
+    "confirm8-products": {
+      "description": "Gerencia produtos/insumos na API Confirm8"
+    },
+    "confirm8-wos": {
+      "description": "Gerencia ordens de serviço (WOS) na API Confirm8"
+    },
+    "confirm8-modalities": {
+      "description": "Gerencia modalidades na API Confirm8"
+    },
+    "confirm8-properties": {
+      "description": "Gerencia propriedades na API Confirm8"
     }
   }
 }
