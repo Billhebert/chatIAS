@@ -1,5 +1,6 @@
 {
   "$schema": "https://opencode.ai/config.json",
+  "theme": "cyberpunk",
   "tools": {
     "code-executor": {
       "description": "Executa, valida e analisa código JavaScript em sandbox"
@@ -42,6 +43,45 @@
     },
     "confirm8-properties": {
       "description": "Gerencia propriedades na API Confirm8"
+    },
+    "rdstation-contacts": {
+      "description": "Gerencia contatos (pessoas) no RD Station CRM - criar, listar, buscar e atualizar"
+    },
+    "rdstation-deals": {
+      "description": "Gerencia negociações (deals) no RD Station CRM - CRUD completo e produtos da negociação"
+    },
+    "rdstation-organizations": {
+      "description": "Gerencia empresas/organizações no RD Station CRM - CRUD e contatos associados"
+    },
+    "rdstation-activities": {
+      "description": "Gerencia anotações/atividades de negociações no RD Station CRM"
+    },
+    "rdstation-tasks": {
+      "description": "Gerencia tarefas de negociações no RD Station CRM - criar, listar, buscar e atualizar"
+    },
+    "rdstation-pipelines": {
+      "description": "Gerencia funis (pipelines) e etapas (stages) no RD Station CRM"
+    },
+    "rdstation-products": {
+      "description": "Gerencia catálogo de produtos no RD Station CRM - CRUD completo"
+    },
+    "rdstation-campaigns": {
+      "description": "Gerencia campanhas de marketing no RD Station CRM"
+    },
+    "rdstation-custom-fields": {
+      "description": "Gerencia campos personalizados no RD Station CRM - criar, listar, atualizar e deletar"
+    },
+    "rdstation-deal-sources": {
+      "description": "Gerencia fontes de negociação no RD Station CRM"
+    },
+    "rdstation-deal-reasons": {
+      "description": "Gerencia motivos de perda de negociação no RD Station CRM"
+    },
+    "rdstation-teams": {
+      "description": "Lista equipes no RD Station CRM (somente leitura)"
+    },
+    "rdstation-users": {
+      "description": "Lista usuários no RD Station CRM (somente leitura)"
     }
   }
 }
