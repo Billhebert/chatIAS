@@ -1,27 +1,199 @@
-.DS_Store
-node_modules
-.worktrees
-.sst
-.env
-.idea
-.vscode
-*~
-playground
-tmp
-dist
-ts-dist
-.turbo
-**/.serena
-.serena/
-/result
-refs
-Session.vim
-opencode.json
-a.out
-target
-.scripts
+# ===========================================
+# SUATEC .gitignore
+# ===========================================
 
-# Local dev files
-opencode-dev
-logs/
+# ===================
+# OS Generated Files
+# ===================
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+*.swp
+*.swo
+*~
+desktop.ini
+
+# ===================
+# IDEs & Editors
+# ===================
+.idea/
+.vscode/
+*.sublime-project
+*.sublime-workspace
+*.code-workspace
+Session.vim
+.vim/
+*.iml
+.project
+.classpath
+.settings/
+
+# ===================
+# Node.js / Bun
+# ===================
+node_modules/
+.npm/
+.yarn/
+.pnp.*
 *.bun-build
+.bun/
+
+# ===================
+# Build Outputs
+# ===================
+dist/
+ts-dist/
+build/
+out/
+.next/
+.nuxt/
+.output/
+a.out
+/result
+
+# ===================
+# Turbo
+# ===================
+.turbo/
+
+# ===================
+# Rust / Tauri
+# ===================
+target/
+**/target/
+*.pdb
+# Tauri updater keys (NEVER commit!)
+.tauri-updater-key
+.tauri-updater-key.pub
+# Tauri sidecars (generated binaries)
+packages/desktop/src-tauri/sidecars/
+packages/desktop/src-tauri/gen/schemas/
+
+# ===================
+# Environment Files
+# ===================
+.env
+.env.*
+.env.local
+.env.*.local
+!.env.example
+!.env.sample
+
+# ===================
+# Logs
+# ===================
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+.pnpm-debug.log*
+
+# ===================
+# Runtime Data
+# ===================
+pids/
+*.pid
+*.seed
+*.pid.lock
+
+# ===================
+# Testing & Coverage
+# ===================
+coverage/
+.nyc_output/
+*.lcov
+.coverage/
+htmlcov/
+
+# ===================
+# Temporary Files
+# ===================
+tmp/
+temp/
+.tmp/
+*.tmp
+*.temp
+playground/
+
+# ===================
+# Cache
+# ===================
+.cache/
+*.cache
+.eslintcache
+.stylelintcache
+.prettiercache
+
+# ===================
+# SUATEC / OpenCode Specific
+# ===================
+.opencode/
+opencode.json
+.worktrees/
+.scripts/
+refs/
+
+# ===================
+# SST (legacy - removed)
+# ===================
+.sst/
+
+# ===================
+# Serena
+# ===================
+**/.serena/
+.serena/
+
+# ===================
+# Docker
+# ===================
+docker/data/
+docker/volumes/
+docker/postgres-data/
+docker/qdrant-data/
+docker/redis-data/
+docker/ollama-data/
+
+# ===================
+# Database Files
+# ===================
+*.sqlite
+*.sqlite3
+*.db
+*.sql.gz
+*.sql.bak
+
+# ===================
+# Credentials & Secrets (NEVER commit!)
+# ===================
+*.pem
+*.key
+*.p12
+*.pfx
+*.crt
+*.cer
+credentials.json
+secrets.json
+service-account*.json
+**/integration/credentials.json
+
+# ===================
+# Lock files (keep bun.lock only)
+# ===================
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+
+# ===================
+# Misc
+# ===================
+*.bak
+*.backup
+*.orig
+.history/
