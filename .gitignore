@@ -2,3 +2,6 @@
 ./node_modules
 node_modules/
 .DS_Store
+/projeto-SDK/node_modules
+/projeto-SDK/.env
+/operations/node_modules
