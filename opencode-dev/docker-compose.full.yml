@@ -1,0 +1,204 @@
+# docker-compose.yml - SUATEC + Serviços de Infraestrutura
+
+services:
+  # ============================================
+  # Aplicação Principal (SUATEC)
+  # ============================================
+  suatec:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: suatec-app
+    ports:
+      - "3000:3000"    # Frontend
+      - "4150:4150"    # Backend API
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - SERVER_PORT=4150
+      - SUATEC_USE_POSTGRES=false
+      - SUATEC_DB_HOST=postgres
+      - SUATEC_DB_PORT=5432
+      - SUATEC_DB_NAME=suatec
+      - SUATEC_DB_USER=suatec
+      - SUATEC_DB_PASSWORD=suatec_secret_2024
+      - SUATEC_REDIS_HOST=redis
+      - SUATEC_REDIS_PORT=6379
+      - SUATEC_QDRANT_HOST=qdrant
+      - SUATEC_QDRANT_PORT=6333
+      - SUATEC_OLLAMA_HOST=ollama
+      - SUATEC_OLLAMA_PORT=11434
+      - EVOLUTION_API_URL=http://evolution:8080
+      - EVOLUTION_API_KEY=suatec_evolution_key_2024
+    volumes:
+      - suatec_data:/app/data
+      - suatec_logs:/app/logs
+    depends_on:
+      - postgres
+      - redis
+      - qdrant
+      - ollama
+      - evolution
+    restart: unless-stopped
+    networks:
+      - suatec-network
+
+  # ============================================
+  # Banco de Dados PostgreSQL
+  # ============================================
+  postgres:
+    image: postgres:16-alpine
+    container_name: suatec-postgres
+    environment:
+      - POSTGRES_DB=suatec
+      - POSTGRES_USER=suatec
+      - POSTGRES_PASSWORD=suatec_secret_2024
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    restart: unless-stopped
+    networks:
+      - suatec-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U suatec -d suatec"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ============================================
+  # Redis (Cache/Sessões)
+  # ============================================
+  redis:
+    image: redis:7-alpine
+    container_name: suatec-redis
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+    ports:
+      - "6379:6379"
+    restart: unless-stopped
+    networks:
+      - suatec-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ============================================
+  # Qdrant (Vector Database para RAG)
+  # ============================================
+  qdrant:
+    image: qdrant/qdrant:latest
+    container_name: suatec-qdrant
+    volumes:
+      - qdrant_data:/qdrant/storage
+    ports:
+      - "6333:6333"
+      - "6334:6334"
+    restart: unless-stopped
+    networks:
+      - suatec-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:6333/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  # ============================================
+  # Ollama (Embeddings Locais)
+  # ============================================
+  ollama:
+    image: ollama/ollama:latest
+    container_name: suatec-ollama
+    volumes:
+      - ollama_data:/root/.ollama
+    ports:
+      - "11434:11434"
+    restart: unless-stopped
+    networks:
+      - suatec-network
+    environment:
+      - OLLAMA_HOST=0.0.0.0
+    deploy:
+      resources:
+        devices:
+          - driver: nvidia
+            count: all
+            capabilities: [gpu]
+
+  # ============================================
+  # Evolution API (WhatsApp)
+  # ============================================
+  evolution:
+    image: rocksdf/evolution-api:2.3.6
+    container_name: suatec-evolution
+    environment:
+      - DATABASE_CONNECTION=postgres://suatec:suatec_secret_2024@postgres:5432/suatec
+      - DATABASE_PROVIDER=postgres
+      - AUTHENTICATION_API_KEY=suatec_evolution_key_2024
+      - AUTHENTICATION_EXPOSE_IN_FETCH=true
+      - AUTHENTICATION_JWT_SECRET=super_secret_jwt_key_change_in_production
+      - WEBHOOK_URL=http://suatec:4150/webhooks/evolution
+      - WEBHOOK_EVENTS=Messages
+      - INSTANCE_CONFIGURATION_PREFIX_NAME=suatec_
+      - CACHE_PROVIDER=redis
+      - CACHE_REDIS_HOST=redis
+      - CACHE_REDIS_PORT=6379
+      - CACHE_REDIS_DB=0
+    volumes:
+      - evolution_data:/evolution/data
+    ports:
+      - "8080:8080"
+    restart: unless-stopped
+    depends_on:
+      - postgres
+      - redis
+    networks:
+      - suatec-network
+
+  # ============================================
+  # PgAdmin (Gerenciamento PostgreSQL)
+  # ============================================
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: suatec-pgadmin
+    environment:
+      - PGADMIN_DEFAULT_EMAIL=admin@suatec.local
+      - PGADMIN_DEFAULT_PASSWORD=admin123
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+    ports:
+      - "5050:80"
+    restart: unless-stopped
+    networks:
+      - suatec-network
+
+# ============================================
+# Volumes
+# ============================================
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+  qdrant_data:
+    driver: local
+  ollama_data:
+    driver: local
+  evolution_data:
+    driver: local
+  pgadmin_data:
+    driver: local
+  suatec_data:
+    driver: local
+  suatec_logs:
+    driver: local
+
+# ============================================
+# Networks
+# ============================================
+networks:
+  suatec-network:
+    driver: bridge

@@ -110,6 +110,7 @@
     "partial-json": "0.1.7",
     "pdf-parse": "2.4.5",
     "pg": "8.16.3",
+    "quansync": "1.0.0",
     "remeda": "catalog:",
     "solid-js": "catalog:",
     "strip-ansi": "7.1.2",

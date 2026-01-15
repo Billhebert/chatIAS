@@ -1269,7 +1269,7 @@ export default function Layout(props: ParentProps) {
               </Show>
             </Button>
           </Tooltip>
-          <Show when={auth.isMaster() || auth.isAdmin()}>
+<Show when={auth.isMaster() || auth.isAdmin()}>
             <Tooltip placement="right" value="Administração" inactive={expanded()}>
               <Button
                 as={A}
@@ -1283,6 +1283,42 @@ export default function Layout(props: ParentProps) {
               </Button>
             </Tooltip>
           </Show>
+          <Tooltip placement="right" value="Follow-ups" inactive={expanded()}>
+            <Button
+              as={A}
+              href="/followups"
+              class="flex w-full text-left justify-start text-text-base stroke-[1.5px] rounded-lg px-2"
+              variant="ghost"
+              size="large"
+              icon="task"
+            >
+              <Show when={expanded()}>Follow-ups</Show>
+            </Button>
+          </Tooltip>
+          <Tooltip placement="right" value="WhatsApp" inactive={expanded()}>
+            <Button
+              as={A}
+              href="/whatsapp"
+              class="flex w-full text-left justify-start text-text-base stroke-[1.5px] rounded-lg px-2"
+              variant="ghost"
+              size="large"
+              icon="bubble-5"
+            >
+              <Show when={expanded()}>WhatsApp</Show>
+            </Button>
+          </Tooltip>
+          <Tooltip placement="right" value="Workflows" inactive={expanded()}>
+            <Button
+              as={A}
+              href="/workflows"
+              class="flex w-full text-left justify-start text-text-base stroke-[1.5px] rounded-lg px-2"
+              variant="ghost"
+              size="large"
+              icon="workflow"
+            >
+              <Show when={expanded()}>Workflows</Show>
+            </Button>
+          </Tooltip>
           <Show when={auth.currentUser()}>
             <div class="flex w-full items-center justify-between px-2">
               <Show when={expanded()}>

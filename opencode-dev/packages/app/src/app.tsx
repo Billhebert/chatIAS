@@ -33,6 +33,9 @@ const Home = lazy(() => import("@/pages/home"))
 const Session = lazy(() => import("@/pages/session"))
 const Login = lazy(() => import("@/pages/login"))
 const Admin = lazy(() => import("@/pages/admin"))
+const FollowUps = lazy(() => import("@/pages/followups"))
+const WhatsApp = lazy(() => import("@/pages/whatsapp"))
+const Workflows = lazy(() => import("@/pages/workflows"))
 const Loading = () => <div class="size-full flex items-center justify-center text-text-weak">Loading...</div>
 
 declare global {
@@ -129,11 +132,35 @@ export function AppInterface() {
                         </Suspense>
                       )}
                     />
-                    <Route
+<Route
                       path="/admin"
                       component={() => (
                         <Suspense fallback={<Loading />}>
                           <Admin />
+                        </Suspense>
+                      )}
+                    />
+                    <Route
+                      path="/followups"
+                      component={() => (
+                        <Suspense fallback={<Loading />}>
+                          <FollowUps />
+                        </Suspense>
+                      )}
+                    />
+                    <Route
+                      path="/whatsapp"
+                      component={() => (
+                        <Suspense fallback={<Loading />}>
+                          <WhatsApp />
+                        </Suspense>
+                      )}
+                    />
+                    <Route
+                      path="/workflows"
+                      component={() => (
+                        <Suspense fallback={<Loading />}>
+                          <Workflows />
                         </Suspense>
                       )}
                     />
