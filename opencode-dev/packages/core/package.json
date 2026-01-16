@@ -1,0 +1,43 @@
+{
+  "name": "@chatias/opencode-core",
+  "version": "3.0.0",
+  "description": "Multi-tenant core for OpenCode - Authentication, Tool Base, Types",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    },
+    "./auth": {
+      "import": "./dist/auth/multi-tenant-auth.js",
+      "types": "./dist/auth/multi-tenant-auth.d.ts"
+    },
+    "./tool-base": {
+      "import": "./dist/tool-base.js",
+      "types": "./dist/tool-base.d.ts"
+    },
+    "./types": {
+      "import": "./dist/types.js",
+      "types": "./dist/types.d.ts"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "type-check": "tsc --noEmit",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "hono": "^4.0.0",
+    "@chatias/core": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.17",
+    "typescript": "^5.3.3"
+  },
+  "peerDependencies": {
+    "bun": ">=1.0.0"
+  }
+}

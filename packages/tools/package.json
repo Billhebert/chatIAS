@@ -1,0 +1,33 @@
+{
+  "name": "@chatias/tools",
+  "version": "3.0.0",
+  "description": "Advanced tools for ChatIAS 3.0 - Modern tooling from OpenCode with enterprise governance",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": "./dist/index.js",
+    "./file": "./dist/file/index.js",
+    "./system": "./dist/system/index.js",
+    "./api": "./dist/api/index.js",
+    "./web": "./dist/web/index.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "type-check": "tsc --noEmit",
+    "test": "bun test",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "zod": "^3.22.4",
+    "@chatias/core": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.17",
+    "bun-types": "latest",
+    "typescript": "^5.3.3"
+  },
+  "peerDependencies": {
+    "bun": ">=1.0.0"
+  }
+}

@@ -1,0 +1,28 @@
+{
+  "name": "@chatias/cli",
+  "version": "3.0.0",
+  "description": "Multi-Tenant CLI for ChatIAS 3.0",
+  "type": "module",
+  "bin": {
+    "chatias": "./bin/chatias.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "start": "node bin/chatias.js",
+    "type-check": "tsc --noEmit"
+  },
+  "dependencies": {
+    "commander": "^11.1.0",
+    "hono": "^4.0.0",
+    "inquirer": "^9.2.12",
+    "@chatias/core": "workspace:*",
+    "@chatias/database": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.17",
+    "@types/inquirer": "^9.0.7",
+    "@types/commander": "^2.20.3",
+    "typescript": "^5.3.3"
+  }
+}

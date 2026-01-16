@@ -1,0 +1,81 @@
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: chatias-postgres
+    environment:
+      POSTGRES_USER: chatias
+      POSTGRES_PASSWORD: chatias_secret
+      POSTGRES_DB: chatias
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U chatias -d chatias"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - chatias-network
+
+  redis:
+    image: redis:7-alpine
+    container_name: chatias-redis
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+    ports:
+      - "6379:6379"
+    networks:
+      - chatias-network
+
+  api:
+    build:
+      context: ./packages/api
+      dockerfile: Dockerfile
+    container_name: chatias-api
+    hostname: chatias-api
+    environment:
+      DATABASE_URL: postgresql://chatias:chatias_secret@postgres:5432/chatias
+      NODE_ENV: production
+      PORT: 3001
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      EXA_API_KEY: sk-jKCkKjx19TCmZDrgNVfn0tojQsnhZR9c3smR1xuUY0K6sKhowxmyRjMVoZFFCAjN
+    env_file:
+      - .env
+    ports:
+      - "3001:3001"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      chatias-network:
+        aliases:
+          - chatias-api
+
+  web:
+    build:
+      context: ./packages/opencode-web
+      dockerfile: Dockerfile
+    container_name: chatias-web
+    hostname: chatias-web
+    environment:
+      VITE_API_URL: http://api:3001
+    ports:
+      - "80:80"
+    depends_on:
+      - api
+    networks:
+      chatias-network:
+        aliases:
+          - chatias-web
+
+networks:
+  chatias-network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local

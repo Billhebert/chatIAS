@@ -1,0 +1,43 @@
+{
+  "name": "@chatias/core",
+  "version": "3.0.0",
+  "description": "Core engine for ChatIAS 3.0 - Enterprise AI Agent Platform",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": "./dist/index.js",
+    "./base": "./dist/base/index.js",
+    "./orchestration": "./dist/orchestration/index.js",
+    "./config": "./dist/config/index.js",
+    "./observability": "./dist/observability/index.js",
+    "./multi-tenant": "./dist/multi-tenant.js",
+    "./system-loader": "./dist/system-loader.js",
+    "./services": "./dist/services/index.js",
+    "./services/company-department": "./dist/services/company-department.js",
+    "./services/followup-automation": "./dist/services/followup-automation.js",
+    "./services/integration": "./dist/services/integration.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "type-check": "tsc --noEmit",
+    "test": "bun test",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "ajv": "^8.17.1",
+    "ajv-formats": "^2.1.1",
+    "eventemitter3": "^5.0.1",
+    "uuid": "^9.0.1",
+    "zod": "^3.22.4"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.17",
+    "@types/uuid": "^9.0.8",
+    "bun-types": "latest",
+    "typescript": "^5.3.3"
+  },
+  "peerDependencies": {
+    "bun": ">=1.0.0"
+  }
+}

@@ -1,0 +1,915 @@
+{
+  "$schema": "https://chatias.ai/schema/v3/config.json",
+  "system": {
+    "name": "ChatIAS Enterprise Platform",
+    "version": "3.0.0",
+    "environment": "production",
+    "strict": true,
+    "hotReload": false,
+    "multiTenant": {
+      "enabled": true,
+      "defaultPlan": "professional",
+      "allowTenantCreation": true
+    }
+  },
+
+  "routing": {
+    "intelligent": true,
+    "strategies": [
+      {
+        "id": "keyword",
+        "type": "keyword_matching",
+        "enabled": true,
+        "priority": 1
+      },
+      {
+        "id": "capability",
+        "type": "capability_matching",
+        "enabled": true,
+        "priority": 2
+      },
+      {
+        "id": "performance",
+        "type": "performance_based",
+        "enabled": true,
+        "priority": 3
+      }
+    ]
+  },
+
+  "middleware": {
+    "chain": [
+      {
+        "id": "auth",
+        "type": "authentication",
+        "enabled": true,
+        "order": 1,
+        "config": {
+          "jwtSecret": "${JWT_SECRET}",
+          "tokenExpiry": "24h"
+        }
+      },
+      {
+        "id": "tenant",
+        "type": "tenant-isolation",
+        "enabled": true,
+        "order": 2
+      },
+      {
+        "id": "rate-limit",
+        "type": "rate-limiting",
+        "enabled": true,
+        "order": 3,
+        "config": {
+          "maxRequests": 1000,
+          "windowMs": 60000
+        }
+      },
+      {
+        "id": "logging",
+        "type": "request-logging",
+        "enabled": true,
+        "order": 4
+      }
+    ]
+  },
+
+  "events": {
+    "enabled": true,
+    "eventBus": "redis",
+    "config": {
+      "redisUrl": "${REDIS_URL}",
+      "namespace": "chatias"
+    }
+  },
+
+  "companies": {
+    "acme-corp": {
+      "id": "acme-corp",
+      "name": "Acme Corporation",
+      "legalName": "Acme Corporation Ltda",
+      "document": "12.345.678/0001-90",
+      "documentType": "CNPJ",
+      "website": "https://acme.com.br",
+      "email": "contato@acme.com.br",
+      "phone": "(11) 99999-9999",
+      "address": {
+        "street": "Av. Paulista",
+        "number": "1000",
+        "city": "São Paulo",
+        "state": "SP",
+        "country": "Brasil",
+        "postalCode": "01310-100"
+      },
+      "settings": {
+        "defaultCurrency": "BRL",
+        "defaultTimezone": "America/Sao_Paulo"
+      },
+      "enabled": true
+    },
+    "tech-startup": {
+      "id": "tech-startup",
+      "name": "Tech Startup Inc",
+      "legalName": "Tech Startup Tecnologia S/A",
+      "document": "98.765.432/0001-10",
+      "documentType": "CNPJ",
+      "email": "hello@techstartup.io",
+      "settings": {
+        "defaultCurrency": "USD",
+        "defaultTimezone": "America/New_York"
+      },
+      "enabled": true
+    }
+  },
+
+  "departments": {
+    "ti": {
+      "id": "ti",
+      "name": "Tecnologia da Informação",
+      "code": "TI",
+      "description": "Departamento de TI",
+      "companyId": "acme-corp",
+      "settings": {
+        "budget": 500000,
+        "costCenter": "CC-001"
+      },
+      "enabled": true
+    },
+    "desenvolvimento": {
+      "id": "desenvolvimento",
+      "name": "Desenvolvimento",
+      "code": "DEV",
+      "parentId": "ti",
+      "description": "Equipe de Desenvolvimento",
+      "companyId": "acme-corp",
+      "enabled": true
+    },
+    "devops": {
+      "id": "devops",
+      "name": "DevOps",
+      "code": "DEVOPS",
+      "parentId": "ti",
+      "description": "Equipe de DevOps e Infraestrutura",
+      "companyId": "acme-corp",
+      "enabled": true
+    },
+    "vendas": {
+      "id": "vendas",
+      "name": "Vendas",
+      "code": "VENDAS",
+      "description": "Departamento de Vendas",
+      "companyId": "acme-corp",
+      "settings": {
+        "budget": 1000000,
+        "costCenter": "CC-002"
+      },
+      "enabled": true
+    },
+    "vendas-b2b": {
+      "id": "vendas-b2b",
+      "name": "Vendas B2B",
+      "code": "VENDAS-B2B",
+      "parentId": "vendas",
+      "description": "Equipe de Vendas B2B",
+      "companyId": "acme-corp",
+      "enabled": true
+    }
+  },
+
+  "accessLevels": {
+    "owner": {
+      "id": "owner",
+      "name": "Owner",
+      "level": 100,
+      "description": "Acesso total ao tenant",
+      "permissions": [
+        { "resource": "*", "actions": ["create", "read", "update", "delete"] }
+      ]
+    },
+    "admin": {
+      "id": "admin",
+      "name": "Admin",
+      "level": 80,
+      "description": "Acesso administrativo",
+      "permissions": [
+        { "resource": "users", "actions": ["create", "read", "update", "delete"] },
+        { "resource": "agents", "actions": ["create", "read", "update", "delete"] },
+        { "resource": "integrations", "actions": ["create", "read", "update", "delete"] },
+        { "resource": "automations", "actions": ["create", "read", "update", "delete"] },
+        { "resource": "companies", "actions": ["create", "read", "update", "delete"] },
+        { "resource": "departments", "actions": ["create", "read", "update", "delete"] },
+        { "resource": "followups", "actions": ["create", "read", "update", "delete"] }
+      ]
+    },
+    "manager": {
+      "id": "manager",
+      "name": "Manager",
+      "level": 60,
+      "description": "Acesso de gestão",
+      "permissions": [
+        { "resource": "users", "actions": ["read", "update"] },
+        { "resource": "agents", "actions": ["read"] },
+        { "resource": "automations", "actions": ["create", "read", "update"] },
+        { "resource": "departments", "actions": ["create", "read", "update"] },
+        { "resource": "followups", "actions": ["create", "read", "update"] }
+      ]
+    },
+    "developer": {
+      "id": "developer",
+      "name": "Developer",
+      "level": 40,
+      "description": "Acesso de desenvolvimento",
+      "permissions": [
+        { "resource": "agents", "actions": ["read"] },
+        { "resource": "automations", "actions": ["read"] },
+        { "resource": "followups", "actions": ["create", "read", "update"] }
+      ]
+    },
+    "viewer": {
+      "id": "viewer",
+      "name": "Viewer",
+      "level": 20,
+      "description": "Acesso somente leitura",
+      "permissions": [
+        { "resource": "agents", "actions": ["read"] },
+        { "resource": "followups", "actions": ["read"] }
+      ]
+    }
+  },
+
+  "followUps": {
+    "daily-standup": {
+      "id": "daily-standup",
+      "title": "Daily Standup",
+      "description": "Reunião diária de alinhamento",
+      "type": "MEETING",
+      "priority": "HIGH",
+      "dueDate": "09:00",
+      "assignedTo": "team-leads",
+      "enabled": true
+    },
+    "sprint-review": {
+      "id": "sprint-review",
+      "title": "Sprint Review",
+      "description": "Revisão da sprint atual",
+      "type": "MEETING",
+      "priority": "HIGH",
+      "dueDate": "friday 16:00",
+      "enabled": true
+    },
+    "client-followup": {
+      "id": "client-followup",
+      "title": "Follow-up com Cliente",
+      "description": "Ligar para cliente após venda",
+      "type": "CALL",
+      "priority": "MEDIUM",
+      "dueDate": "tomorrow 10:00",
+      "enabled": true
+    },
+    "report-deadline": {
+      "id": "report-deadline",
+      "title": "Entrega de Relatório Mensal",
+      "description": " deadline para relatório",
+      "type": "DEADLINE",
+      "priority": "URGENT",
+      "dueDate": "2024-01-30",
+      "enabled": true
+    }
+  },
+
+  "automations": {
+    "welcome-new-lead": {
+      "id": "welcome-new-lead",
+      "name": "Boas-vindas para Novos Leads",
+      "description": "Envia mensagem automática quando novo lead é criado no RD Station",
+      "trigger": {
+        "type": "EVENT",
+        "config": {
+          "eventName": "lead.created",
+          "source": "rdstation"
+        }
+      },
+      "conditions": [
+        {
+          "field": "source",
+          "operator": "equals",
+          "value": "rdstation"
+        }
+      ],
+      "actions": [
+        {
+          "id": "1",
+          "type": "SEND_MESSAGE",
+          "config": {
+            "channel": "whatsapp",
+            "to": "{{contact.phone}}",
+            "message": "Olá {{contact.name}}! Seja bem-vindo à {{company.name}}. Como podemos ajudar você hoje?"
+          }
+        },
+        {
+          "id": "2",
+          "type": "CREATE_TASK",
+          "config": {
+            "title": "Follow-up com {{contact.name}}",
+            "type": "CALL",
+            "priority": "MEDIUM",
+            "dueDate": "tomorrow 14:00"
+          }
+        },
+        {
+          "id": "3",
+          "type": "SEND_NOTIFICATION",
+          "config": {
+            "to": "sales-team",
+            "message": "Novo lead criado: {{contact.name}} ({{contact.email}})"
+          }
+        }
+      ],
+      "enabled": true,
+      "errorHandling": {
+        "onError": "continue",
+        "maxRetries": 3
+      }
+    },
+    "reminder-followup": {
+      "id": "reminder-followup",
+      "name": "Lembrete de Follow-up",
+      "description": "Cria tarefa de follow-up automaticamente após calls",
+      "trigger": {
+        "type": "EVENT",
+        "config": {
+          "eventName": "call.completed",
+          "source": "evolution"
+        }
+      },
+      "actions": [
+        {
+          "id": "1",
+          "type": "CREATE_TASK",
+          "config": {
+            "title": "Follow-up: {{call.contact_name}}",
+            "type": "CALL",
+            "priority": "MEDIUM",
+            "dueDate": "tomorrow 10:00"
+          }
+        }
+      ],
+      "enabled": true
+    },
+    "daily-report": {
+      "id": "daily-report",
+      "name": "Relatório Diário de Vendas",
+      "description": "Envia relatório diário de vendas por email",
+      "trigger": {
+        "type": "SCHEDULE",
+        "config": {
+          "cron": "0 18 * * 1-5",
+          "timezone": "America/Sao_Paulo"
+        }
+      },
+      "actions": [
+        {
+          "id": "1",
+          "type": "CALL_WEBHOOK",
+          "config": {
+            "url": "${REPORT_API_URL}/daily-sales",
+            "method": "POST"
+          }
+        },
+        {
+          "id": "2",
+          "type": "SEND_EMAIL",
+          "config": {
+            "to": "gerentes@empresa.com",
+            "subject": "Relatório Diário de Vendas - {{date}}",
+            "template": "daily-sales-report"
+          }
+        }
+      ],
+      "enabled": true
+    },
+    "sync-whatsapp-rdstation": {
+      "id": "sync-whatsapp-rdstation",
+      "name": "Sync WhatsApp → RD Station",
+      "description": "Sincroniza contatos do WhatsApp para o RD Station",
+      "trigger": {
+        "type": "WEBHOOK",
+        "config": {
+          "path": "/webhooks/whatsapp",
+          "method": "POST"
+        }
+      },
+      "actions": [
+        {
+          "id": "1",
+          "type": "UPDATE_CONTACT",
+          "config": {
+            "action": "upsert",
+            "source": "whatsapp",
+            "mapping": {
+              "phone": "{{message.from}}",
+              "name": "{{contact.name}}",
+              "last_message": "{{message.body}}"
+            }
+          }
+        }
+      ],
+      "enabled": false
+    },
+    "urgent-followup-alert": {
+      "id": "urgent-followup-alert",
+      "name": "Alerta de Follow-up Urgente",
+      "description": "Notifica quando follow-up está atrasado",
+      "trigger": {
+        "type": "CONDITION_MET",
+        "config": {
+          "checkInterval": "1h",
+          "condition": "followups.status == 'OVERDUE'"
+        }
+      },
+      "actions": [
+        {
+          "id": "1",
+          "type": "SEND_NOTIFICATION",
+          "config": {
+            "to": "managers",
+            "message": "⚠️ {{count}} follow-ups estão atrasados! Verifique a lista."
+          }
+        }
+      ],
+      "enabled": true
+    }
+  },
+
+  "integrations": {
+    "evolution-api": {
+      "id": "evolution-api",
+      "type": "EVOLUTION",
+      "name": "Evolution API (WhatsApp)",
+      "companyId": "acme-corp",
+      "credentials": {
+        "baseUrl": "${EVOLUTION_BASE_URL}",
+        "instanceName": "chatias-main",
+        "token": "${EVOLUTION_TOKEN}"
+      },
+      "settings": {
+        "webhookUrl": "${WEBHOOK_URL}/whatsapp",
+        "messageDelay": 1000
+      },
+      "enabled": true,
+      "sandbox": false
+    },
+    "rdstation-crm": {
+      "id": "rdstation-crm",
+      "type": "RDSTATION",
+      "name": "RD Station CRM",
+      "companyId": "acme-corp",
+      "credentials": {
+        "clientId": "${RDSTATION_CLIENT_ID}",
+        "clientSecret": "${RDSTATION_CLIENT_SECRET}",
+        "accessToken": "${RDSTATION_ACCESS_TOKEN}"
+      },
+      "settings": {
+        "syncInterval": "5m",
+        "autoSyncContacts": true
+      },
+      "enabled": true
+    },
+    "confirm8": {
+      "id": "confirm8",
+      "type": "CONFIRM8",
+      "name": "Confirm8 Business",
+      "companyId": "acme-corp",
+      "credentials": {
+        "username": "${CONFIRM8_USERNAME}",
+        "password": "${CONFIRM8_PASSWORD}"
+      },
+      "enabled": true
+    },
+    "slack-alerts": {
+      "id": "slack-alerts",
+      "type": "SLACK",
+      "name": "Slack Alerts",
+      "credentials": {
+        "webhookUrl": "${SLACK_WEBHOOK_URL}"
+      },
+      "settings": {
+        "channel": "#alerts",
+        "mentionRole": "@admin"
+      },
+      "enabled": true
+    },
+    "email-smtp": {
+      "id": "email-smtp",
+      "type": "EMAIL",
+      "name": "Email Server",
+      "credentials": {
+        "smtpHost": "smtp.empresa.com",
+        "smtpPort": 587,
+        "smtpUser": "${SMTP_USER}",
+        "smtpPassword": "${SMTP_PASSWORD}",
+        "fromEmail": "noreply@empresa.com",
+        "fromName": "ChatIAS Platform"
+      },
+      "enabled": true
+    }
+  },
+
+  "agents": {
+    "llm-automation": {
+      "id": "llm-automation",
+      "name": "Automation Agent",
+      "description": "Agente de automação inteligente que entende linguagem natural",
+      "enabled": true,
+      "version": "1.0.0",
+      "tags": ["automation", "nlp", "llm"],
+      "capabilities": {
+        "nlp": true,
+        "toolUse": true,
+        "multiStep": true,
+        "contextAware": true
+      },
+      "permissions": {
+        "readFile": true,
+        "writeFile": false,
+        "executeCode": false,
+        "accessKB": true,
+        "useTools": true,
+        "callSubagents": false,
+        "networkAccess": true
+      },
+      "routing": {
+        "keywords": ["automatizar", "criar", "agendar", "enviar", "fazer", "executar"],
+        "priority": 10,
+        "minConfidence": 0.7
+      },
+      "mcp": {
+        "optional": ["openai", "anthropic"],
+        "preference": "cloud",
+        "fallback": true
+      }
+    },
+    "sales-assistant": {
+      "id": "sales-assistant",
+      "name": "Sales Assistant",
+      "description": "Assistente de vendas integrado com RD Station",
+      "enabled": true,
+      "version": "1.0.0",
+      "tags": ["sales", "crm", "rdstation"],
+      "capabilities": {
+        "nlp": true,
+        "toolUse": true,
+        "multiStep": true,
+        "contextAware": true
+      },
+      "permissions": {
+        "readFile": true,
+        "writeFile": false,
+        "executeCode": false,
+        "accessKB": true,
+        "useTools": true,
+        "callSubagents": true,
+        "networkAccess": true
+      },
+      "routing": {
+        "keywords": ["venda", "lead", "cliente", "deal", "pipeline", "conversão"],
+        "priority": 8,
+        "minConfidence": 0.6
+      },
+      "mcp": {
+        "optional": ["rdstation"],
+        "preference": "local",
+        "fallback": false
+      }
+    },
+    "support-bot": {
+      "id": "support-bot",
+      "name": "Support Bot",
+      "description": "Bot de suporte integrado com WhatsApp",
+      "enabled": true,
+      "version": "1.0.0",
+      "tags": ["support", "whatsapp", "chat"],
+      "capabilities": {
+        "nlp": true,
+        "toolUse": true,
+        "multiStep": true,
+        "contextAware": true
+      },
+      "permissions": {
+        "readFile": true,
+        "writeFile": false,
+        "executeCode": false,
+        "accessKB": true,
+        "useTools": true,
+        "callSubagents": false,
+        "networkAccess": true
+      },
+      "routing": {
+        "keywords": ["ajuda", "suporte", "problema", "duvida", "informação"],
+        "priority": 5,
+        "minConfidence": 0.5
+      },
+      "mcp": {
+        "optional": ["evolution"],
+        "preference": "local",
+        "fallback": true
+      }
+    }
+  },
+
+  "tools": {
+    "file-reader": {
+      "id": "file-reader",
+      "name": "File Reader",
+      "description": "Lê arquivos do sistema",
+      "category": "file",
+      "enabled": true,
+      "version": "1.0.0",
+      "parameters": {
+        "path": {
+          "type": "string",
+          "required": true,
+          "description": "Caminho do arquivo"
+        }
+      },
+      "constraints": {
+        "allowedPaths": ["/data", "/docs"],
+        "allowedExtensions": [".txt", ".md", ".json", ".csv"]
+      }
+    },
+    "file-writer": {
+      "id": "file-writer",
+      "name": "File Writer",
+      "description": "Escreve arquivos no sistema",
+      "category": "file",
+      "enabled": true,
+      "version": "1.0.0",
+      "parameters": {
+        "path": {
+          "type": "string",
+          "required": true
+        },
+        "content": {
+          "type": "string",
+          "required": true
+        }
+      },
+      "constraints": {
+        "allowedPaths": ["/data/output"],
+        "allowedExtensions": [".txt", ".md", ".json", ".csv"]
+      }
+    },
+    "bash": {
+      "id": "bash",
+      "name": "Bash Command",
+      "description": "Executa comandos shell",
+      "category": "system",
+      "enabled": true,
+      "version": "1.0.0",
+      "parameters": {
+        "command": {
+          "type": "string",
+          "required": true,
+          "description": "Comando a ser executado"
+        },
+        "timeout": {
+          "type": "number",
+          "required": false,
+          "default": 30000
+        }
+      },
+      "constraints": {
+        "noChildProcess": false,
+        "maxExecutionTime": 60000
+      }
+    }
+  },
+
+  "toolSequences": {
+    "create-lead-workflow": {
+      "id": "create-lead-workflow",
+      "name": "Create Lead from WhatsApp",
+      "description": "Fluxo para criar lead no RD Station a partir de mensagem WhatsApp",
+      "tags": ["lead", "whatsapp", "rdstation"],
+      "triggeredBy": ["whatsapp.message.received"],
+      "steps": [
+        {
+          "order": 1,
+          "tool": "file-reader",
+          "action": "read",
+          "params": {
+            "path": "/data/templates/welcome_message.json"
+          },
+          "onSuccess": "continue",
+          "onError": "log_warning",
+          "description": "Ler template de boas-vindas"
+        },
+        {
+          "order": 2,
+          "action": "parse_json",
+          "params": {
+            "template": "{{step1.output.content}}"
+          },
+          "onSuccess": "continue",
+          "onError": "stop",
+          "description": "Parsear template"
+        },
+        {
+          "order": 3,
+          "mcp": "rdstation",
+          "action": "createContact",
+          "params": {
+            "name": "{{message.from_name}}",
+            "phone": "{{message.from}}",
+            "source": "whatsapp"
+          },
+          "onSuccess": "continue",
+          "onError": "fallback",
+          "description": "Criar contato no RD Station"
+        }
+      ],
+      "errorHandling": {
+        "strategy": "retry_all",
+        "retry": {
+          "enabled": true,
+          "maxRetries": 3,
+          "backoffMs": 1000,
+          "exponentialBackoff": true
+        }
+      },
+      "circuitBreaker": {
+        "enabled": true,
+        "failureThreshold": 5,
+        "successThreshold": 2,
+        "timeout": 30000
+      }
+    }
+  },
+
+  "knowledgeBase": {
+    "products": {
+      "id": "products",
+      "name": "Product Documentation",
+      "description": "Base de conhecimento de produtos",
+      "version": "1.0.0",
+      "type": "vector",
+      "topics": ["produtos", "pricing", "features"],
+      "usedBy": ["sales-assistant", "support-bot"]
+    },
+    "company-info": {
+      "id": "company-info",
+      "name": "Company Information",
+      "description": "Informações sobre a empresa",
+      "version": "1.0.0",
+      "type": "document",
+      "topics": ["empresa", "história", "missão", "valores"],
+      "usedBy": ["support-bot"]
+    },
+    "support-faq": {
+      "id": "support-faq",
+      "name": "Support FAQ",
+      "description": "Perguntas frequentes de suporte",
+      "version": "1.0.0",
+      "type": "hybrid",
+      "topics": ["suporte", "faq", "problemas comuns"],
+      "usedBy": ["support-bot"]
+    }
+  },
+
+  "mcp": {
+    "openai": {
+      "id": "openai",
+      "name": "OpenAI GPT-4",
+      "description": "OpenAI GPT-4 for advanced LLM capabilities",
+      "type": "cloud",
+      "enabled": true,
+      "baseUrl": "https://api.openai.com/v1",
+      "models": [
+        {
+          "id": "gpt-4",
+          "name": "GPT-4",
+          "contextWindow": 8192,
+          "speed": "medium",
+          "quality": "excellent",
+          "cost": "high"
+        },
+        {
+          "id": "gpt-4-turbo",
+          "name": "GPT-4 Turbo",
+          "contextWindow": 128000,
+          "speed": "fast",
+          "quality": "excellent",
+          "cost": "medium"
+        },
+        {
+          "id": "gpt-3.5-turbo",
+          "name": "GPT-3.5 Turbo",
+          "contextWindow": 16385,
+          "speed": "fast",
+          "quality": "high",
+          "cost": "low"
+        }
+      ],
+      "defaultModel": "gpt-4-turbo",
+      "authentication": {
+        "type": "bearer",
+        "envVar": "OPENAI_API_KEY",
+        "required": true
+      },
+      "healthCheck": {
+        "enabled": true,
+        "endpoint": "/models",
+        "interval": 60000,
+        "timeout": 5000
+      }
+    },
+    "anthropic": {
+      "id": "anthropic",
+      "name": "Anthropic Claude",
+      "description": "Anthropic Claude for advanced reasoning",
+      "type": "cloud",
+      "enabled": true,
+      "baseUrl": "https://api.anthropic.com/v1",
+      "models": [
+        {
+          "id": "claude-3-opus",
+          "name": "Claude 3 Opus",
+          "contextWindow": 200000,
+          "speed": "medium",
+          "quality": "excellent",
+          "cost": "high"
+        },
+        {
+          "id": "claude-3-sonnet",
+          "name": "Claude 3 Sonnet",
+          "contextWindow": 200000,
+          "speed": "fast",
+          "quality": "excellent",
+          "cost": "medium"
+        }
+      ],
+      "defaultModel": "claude-3-sonnet",
+      "authentication": {
+        "type": "bearer",
+        "envVar": "ANTHROPIC_API_KEY",
+        "required": true
+      }
+    }
+  },
+
+  "governance": {
+    "validation": {
+      "enabled": true,
+      "onLoad": true,
+      "strict": false,
+      "failFast": false
+    },
+    "permissions": {
+      "agents": {
+        "maxConcurrent": 10,
+        "timeout": 60000
+      },
+      "tools": {
+        "maxConcurrent": 20,
+        "timeout": 30000
+      }
+    },
+    "audit": {
+      "enabled": true,
+      "logFile": "./logs/audit.log",
+      "trackActions": [
+        "agent.execute",
+        "tool.execute",
+        "automation.run",
+        "integration.call",
+        "user.login",
+        "user.logout"
+      ]
+    }
+  },
+
+  "observability": {
+    "logging": {
+      "enabled": true,
+      "level": "info",
+      "transports": [
+        {
+          "type": "console",
+          "enabled": true,
+          "format": "colored"
+        },
+        {
+          "type": "file",
+          "enabled": true,
+          "location": "./logs/app.log",
+          "maxSize": "100m",
+          "format": "json"
+        }
+      ]
+    },
+    "metrics": {
+      "enabled": true,
+      "backend": "prometheus"
+    }
+  }
+}

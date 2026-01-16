@@ -1,0 +1,16 @@
+{
+  "name": "ChatIAS",
+  "short_name": "ChatIAS",
+  "description": "OpenCode - ChatIAS Edition",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#F8F7F7",
+  "theme_color": "#2563EB",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ]
+}

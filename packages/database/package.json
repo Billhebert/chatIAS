@@ -1,0 +1,35 @@
+{
+  "name": "@chatias/database",
+  "version": "3.0.0",
+  "description": "Database layer for ChatIAS 3.0 with Prisma ORM and PostgreSQL",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": "./dist/index.js"
+  },
+  "scripts": {
+    "build": "prisma generate && tsc",
+    "dev": "prisma generate && tsc --watch",
+    "type-check": "tsc --noEmit",
+    "db:generate": "prisma generate",
+    "db:push": "prisma db push",
+    "db:migrate": "prisma migrate dev",
+    "db:studio": "prisma studio",
+    "db:seed": "ts-node prisma/seed.ts",
+    "test": "bun test",
+    "clean": "rm -rf dist && rm -rf generated"
+  },
+  "dependencies": {
+    "@prisma/client": "^5.10.0",
+    "@chatias/core": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.17",
+    "bun-types": "latest",
+    "prisma": "^5.10.0",
+    "typescript": "^5.3.3"
+  },
+  "peerDependencies": {
+    "bun": ">=1.0.0"
+  }
+}

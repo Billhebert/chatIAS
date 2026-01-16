@@ -1,0 +1,652 @@
+// Prisma Schema for ChatIAS 3.0
+// Multi-tenant database with PostgreSQL
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================================================
+// TENANT & USER MANAGEMENT
+// ============================================================================
+
+model Tenant {
+  id                String           @id @default(uuid())
+  name              String
+  slug              String           @unique
+  status            TenantStatus     @default(TRIAL)
+  plan              TenantPlan       @default(STARTER)
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+  
+  // Billing info
+  stripeCustomerId  String?
+  stripeSubscriptionId String?
+  billingEmail      String?
+  trialEndsAt       DateTime?
+  
+  // Relations
+  users             User[]
+  apiKeys           ApiKey[]
+  settings          TenantSettings?
+  usageRecords      UsageRecord[]
+  conversations     Conversation[]
+  agents            Agent[]
+  tools             ToolInstance[]
+  knowledgeBases    KnowledgeBase[]
+  companies         Company[]
+  departments       Department[]
+  followUps         FollowUp[]
+  automations       Automation[]
+  integrationConfigs IntegrationConfig[]
+  
+  @@index([slug])
+}
+
+model TenantSettings {
+  id                String   @id @default(uuid())
+  tenantId          String   @unique
+  displayName       String?
+  logo              String?
+  website           String?
+  email             String?
+  timezone          String   @default("UTC")
+  locale            String   @default("en")
+  currency          String   @default("USD")
+  
+  // Feature flags
+  features          Json     @default("{}")
+  
+  // Security
+  security          Json     @default("{}")
+  
+  tenant            Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+}
+
+model User {
+  id                String     @id @default(uuid())
+  tenantId          String
+  email             String
+  name              String
+  role              UserRole   @default(DEVELOPER)
+  status            UserStatus @default(PENDING)
+  avatar            String?
+  phone             String?
+  departmentId      String?
+  timezone          String?    @default("UTC")
+  locale            String?    @default("en")
+  createdAt         DateTime   @default(now())
+  updatedAt         DateTime   @updatedAt
+  lastLoginAt       DateTime?
+  emailVerified     Boolean    @default(false)
+  mfaEnabled        Boolean    @default(false)
+  passwordHash      String?
+  
+  // Relations
+  tenant            Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  department        Department? @relation(fields: [departmentId], references: [id])
+  apiKeys           ApiKey[]
+  conversations     ConversationParticipant[]
+  messages          Message[]
+  followUps         FollowUp[]
+  automationLogs    AutomationLog[]
+  
+  @@unique([tenantId, email])
+  @@index([tenantId])
+  @@index([email])
+}
+
+model AccessLevel {
+  id                String     @id @default(uuid())
+  name              String
+  description       String?
+  permissions       Json       @default("{}")
+  isSystem          Boolean    @default(false)
+  createdAt         DateTime   @default(now())
+  updatedAt         DateTime   @updatedAt
+
+  @@index([name])
+}
+
+model ApiKey {
+  id                String   @id @default(uuid())
+  tenantId          String
+  userId            String
+  name              String
+  key               String   // Hashed
+  prefix            String   // First 8 chars for identification
+  permissions       String[] @default(["read"])
+  lastUsedAt        DateTime?
+  expiresAt         DateTime?
+  createdAt         DateTime @default(now())
+  
+  tenant            Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@index([tenantId])
+  @@index([prefix])
+}
+
+// ============================================================================
+// ENTERPRISE STRUCTURE
+// ============================================================================
+
+model Company {
+  id                String       @id @default(uuid())
+  tenantId          String
+  name              String
+  legalName         String?
+  document          String?      // CNPJ/CPF
+  documentType      DocumentType @default(CNPJ)
+  website           String?
+  email             String?
+  phone             String?
+  address           Json?
+  logo              String?
+  settings          Json         @default("{}")
+  status            CompanyStatus @default(ACTIVE)
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
+  
+  // Relations
+  tenant            Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  departments       Department[]
+  contacts          Contact[]
+  integrations      IntegrationConfig[]
+  
+  @@unique([tenantId, name])
+  @@index([tenantId])
+}
+
+model Department {
+  id                String       @id @default(uuid())
+  tenantId          String
+  companyId         String?
+  name              String
+  code              String?
+  parentId          String?      // For sub-departments
+  description       String?
+  managerId         String?
+  settings          Json         @default("{}")
+  status            DepartmentStatus @default(ACTIVE)
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
+  
+  // Relations
+  tenant            Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  company           Company?     @relation(fields: [companyId], references: [id], onDelete: SetNull)
+  parent            Department?  @relation("DepartmentHierarchy", fields: [parentId], references: [id])
+  children          Department[] @relation("DepartmentHierarchy")
+  users             User[]
+  
+  @@unique([tenantId, companyId, name])
+  @@index([tenantId])
+  @@index([companyId])
+  @@index([parentId])
+}
+
+model Contact {
+  id                String       @id @default(uuid())
+  companyId         String
+  name              String
+  email             String?
+  phone             String?
+  position          String?
+  notes             String?
+  metadata          Json         @default("{}")
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
+  
+  // Relations
+  company           Company      @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  
+  @@index([companyId])
+}
+
+// ============================================================================
+// FOLLOW-UPS & TASKS
+// ============================================================================
+
+model FollowUp {
+  id                String           @id @default(uuid())
+  tenantId          String
+  title             String
+  description       String?
+  type              FollowUpType
+  priority          FollowUpPriority @default(MEDIUM)
+  status            FollowUpStatus   @default(PENDING)
+  dueDate           DateTime?
+  completedAt       DateTime?
+  metadata          Json             @default("{}")
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+  
+  // Relations
+  tenant            Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  assignedToId      String?
+  assignedTo        User?            @relation(fields: [assignedToId], references: [id], onDelete: SetNull)
+  relatedContactId  String?
+  
+  @@index([tenantId])
+  @@index([assignedToId])
+  @@index([status])
+}
+
+// ============================================================================
+// AUTOMATIONS & WORKFLOWS
+// ============================================================================
+
+model Automation {
+  id                String           @id @default(uuid())
+  tenantId          String
+  name              String
+  description       String?
+  trigger           String           // Event that triggers the automation
+  triggerConfig     Json             @default("{}")
+  conditions        Json?            // Conditions to evaluate
+  actions           Json             // Actions to execute
+  enabled           Boolean          @default(true)
+  executionCount    Int              @default(0)
+  lastExecutedAt    DateTime?
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+  
+  // Relations
+  tenant            Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  logs              AutomationLog[]
+  
+  @@index([tenantId])
+  @@index([trigger])
+}
+
+model AutomationLog {
+  id                String       @id @default(uuid())
+  automationId      String
+  userId            String?
+  status            ExecutionStatus @default(PENDING)
+  input             Json         @default("{}")
+  output            Json?
+  error             String?
+  duration          Int?
+  createdAt         DateTime     @default(now())
+  
+  // Relations
+  automation        Automation   @relation(fields: [automationId], references: [id], onDelete: Cascade)
+  user              User?        @relation(fields: [userId], references: [id], onDelete: SetNull)
+  
+  @@index([automationId])
+  @@index([userId])
+  @@index([createdAt])
+}
+
+// ============================================================================
+// INTEGRATIONS CONFIG
+// ============================================================================
+
+model IntegrationConfig {
+  id                String           @id @default(uuid())
+  tenantId          String
+  companyId         String?
+  type              IntegrationType
+  name              String
+  config            Json             // Encrypted credentials
+  status            IntegrationStatus @default(DISCONNECTED)
+  lastSyncAt        DateTime?
+  metadata          Json             @default("{}")
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+  
+  // Relations
+  tenant            Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  company           Company?         @relation(fields: [companyId], references: [id], onDelete: SetNull)
+  
+  @@unique([tenantId, type])
+  @@index([tenantId])
+  @@index([type])
+}
+
+// ============================================================================
+// CONVERSATIONS & MESSAGES
+// ============================================================================
+
+model Conversation {
+  id                String                      @id @default(uuid())
+  tenantId          String
+  title             String?
+  status            ConversationStatus          @default(ACTIVE)
+  metadata          Json                        @default("{}")
+  createdAt         DateTime                    @default(now())
+  updatedAt         DateTime                    @updatedAt
+  
+  // Relations
+  tenant            Tenant                      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  participants      ConversationParticipant[]
+  messages          Message[]
+  
+  @@index([tenantId])
+  @@index([createdAt])
+}
+
+model ConversationParticipant {
+  id                String       @id @default(uuid())
+  conversationId    String
+  userId            String
+  role              ParticipantRole @default(MEMBER)
+  joinedAt          DateTime     @default(now())
+  
+  conversation      Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  user              User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@unique([conversationId, userId])
+  @@index([userId])
+}
+
+model Message {
+  id                String            @id @default(uuid())
+  conversationId    String
+  userId            String?
+  role              MessageRole
+  content           String
+  contentType       MessageContentType @default(TEXT)
+  metadata          Json              @default("{}")
+  createdAt         DateTime          @default(now())
+  
+  // Relations
+  conversation      Conversation      @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  user              User?             @relation(fields: [userId], references: [id], onDelete: SetNull)
+  
+  @@index([conversationId])
+  @@index([createdAt])
+}
+
+// ============================================================================
+// AGENTS & TOOLS
+// ============================================================================
+
+model Agent {
+  id                String         @id @default(uuid())
+  tenantId          String
+  name              String
+  description       String?
+  type              String         // code_analyzer, data_processor, llm_automation, etc.
+  config            Json           @default("{}")
+  version           String         @default("1.0.0")
+  enabled           Boolean        @default(true)
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+  
+  // Relations
+  tenant            Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  executions        AgentExecution[]
+  
+  @@unique([tenantId, name])
+  @@index([tenantId])
+}
+
+model AgentExecution {
+  id                String       @id @default(uuid())
+  agentId           String
+  input             Json
+  output            Json?
+  status            ExecutionStatus @default(PENDING)
+  duration          Int?         // In milliseconds
+  error             String?
+  metadata          Json         @default("{}")
+  createdAt         DateTime     @default(now())
+  
+  // Relations
+  agent             Agent        @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  
+  @@index([agentId])
+  @@index([createdAt])
+}
+
+model ToolInstance {
+  id                String     @id @default(uuid())
+  tenantId          String
+  name              String
+  type              String     // evolution, rdstation, confirm8, file, system
+  config            Json       @default("{}")
+  enabled           Boolean    @default(true)
+  createdAt         DateTime   @default(now())
+  updatedAt         DateTime   @updatedAt
+  
+  // Relations
+  tenant            Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  executions        ToolExecution[]
+  
+  @@unique([tenantId, name])
+  @@index([tenantId])
+}
+
+model ToolExecution {
+  id                String       @id @default(uuid())
+  toolInstanceId    String
+  action            String
+  input             Json
+  output            Json?
+  status            ExecutionStatus @default(PENDING)
+  duration          Int?
+  error             String?
+  createdAt         DateTime     @default(now())
+  
+  // Relations
+  toolInstance      ToolInstance @relation(fields: [toolInstanceId], references: [id], onDelete: Cascade)
+  
+  @@index([toolInstanceId])
+  @@index([createdAt])
+}
+
+// ============================================================================
+// KNOWLEDGE BASE
+// ============================================================================
+
+model KnowledgeBase {
+  id                String       @id @default(uuid())
+  tenantId          String
+  name              String
+  description       String?
+  type              KBType       @default(DOCUMENT)
+  config            Json         @default("{}")
+  embeddingModel    String?
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
+  
+  // Relations
+  tenant            Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  documents         KBDocument[]
+  
+  @@unique([tenantId, name])
+  @@index([tenantId])
+}
+
+model KBDocument {
+  id                String         @id @default(uuid())
+  knowledgeBaseId   String
+  title             String
+  content           String
+  contentType       String         @default("text")
+  metadata          Json           @default("{}")
+  embedding         Bytes?         // Vector embedding
+  chunkIndex        Int            @default(0)
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+  
+  // Relations
+  knowledgeBase     KnowledgeBase  @relation(fields: [knowledgeBaseId], references: [id], onDelete: Cascade)
+  
+  @@index([knowledgeBaseId])
+  @@index([embedding])
+}
+
+// ============================================================================
+// USAGE TRACKING
+// ============================================================================
+
+model UsageRecord {
+  id                String     @id @default(uuid())
+  tenantId          String
+  periodStart       DateTime
+  periodEnd         DateTime
+  
+  // Metrics
+  apiCalls          Int        @default(0)
+  storageBytes      BigInt     @default(0)
+  agentExecutions   Int        @default(0)
+  toolExecutions    Int        @default(0)
+  messages          Int        @default(0)
+  automationRuns    Int        @default(0)
+  
+  // Limits
+  apiLimit          Int
+  storageLimit      BigInt
+  
+  createdAt         DateTime   @default(now())
+  
+  // Relations
+  tenant            Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  
+  @@unique([tenantId, periodStart])
+  @@index([tenantId])
+  @@index([periodStart])
+}
+
+// ============================================================================
+// ENUMS
+// ============================================================================
+
+enum TenantStatus {
+  ACTIVE
+  SUSPENDED
+  TRIAL
+  CANCELLED
+}
+
+enum TenantPlan {
+  FREE
+  STARTER
+  PROFESSIONAL
+  ENTERPRISE
+}
+
+enum UserRole {
+  OWNER
+  ADMIN
+  MANAGER
+  DEVELOPER
+  VIEWER
+}
+
+enum UserStatus {
+  ACTIVE
+  INACTIVE
+  PENDING
+  SUSPENDED
+}
+
+enum DocumentType {
+  CNPJ
+  CPF
+  PASSPORT
+  OTHER
+}
+
+enum CompanyStatus {
+  ACTIVE
+  INACTIVE
+  SUSPENDED
+}
+
+enum DepartmentStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum FollowUpType {
+  TASK
+  MEETING
+  CALL
+  EMAIL
+  DEADLINE
+  REMINDER
+  CUSTOM
+}
+
+enum FollowUpPriority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+enum FollowUpStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+  OVERDUE
+}
+
+enum IntegrationType {
+  EVOLUTION
+  RDSTATION
+  CONFIRM8
+  WEBHOOK
+  SLACK
+  DISCORD
+  EMAIL
+  CUSTOM
+}
+
+enum IntegrationStatus {
+  CONNECTED
+  DISCONNECTED
+  ERROR
+  PENDING
+}
+
+enum ConversationStatus {
+  ACTIVE
+  ARCHIVED
+  DELETED
+}
+
+enum ParticipantRole {
+  OWNER
+  ADMIN
+  MEMBER
+}
+
+enum MessageRole {
+  USER
+  ASSISTANT
+  SYSTEM
+  TOOL
+}
+
+enum MessageContentType {
+  TEXT
+  MARKDOWN
+  CODE
+  JSON
+  HTML
+}
+
+enum ExecutionStatus {
+  PENDING
+  RUNNING
+  SUCCESS
+  FAILED
+  CANCELLED
+}
+
+enum KBType {
+  DOCUMENT
+  VECTOR
+  API
+  HYBRID
+}

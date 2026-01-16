@@ -1,0 +1,32 @@
+{
+  "name": "@chatias/integrations",
+  "version": "3.0.0",
+  "description": "Native API integrations for ChatIAS 3.0 - Evolution, RD Station, Confirm8",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": "./dist/index.js",
+    "./evolution": "./dist/evolution/index.js",
+    "./rdstation": "./dist/rdstation/index.js",
+    "./confirm8": "./dist/confirm8/index.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "type-check": "tsc --noEmit",
+    "test": "bun test",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "zod": "^3.22.4",
+    "@chatias/core": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.17",
+    "bun-types": "latest",
+    "typescript": "^5.3.3"
+  },
+  "peerDependencies": {
+    "bun": ">=1.0.0"
+  }
+}
